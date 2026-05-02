@@ -25,6 +25,9 @@ from config import (
     TRACK_NAME_TO_CODE,
 )
 
+# 共通セッションの作成
+session = requests.Session()
+session.headers.update(REQUEST_HEADERS)
 
 # ============================================================
 # ユーティリティ
@@ -33,7 +36,7 @@ from config import (
 def _get(url: str) -> Optional[BeautifulSoup]:
     """URLからHTMLを取得してBeautifulSoupオブジェクトを返す"""
     try:
-        resp = requests.get(url, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT)
+        resp = session.get(url, timeout=REQUEST_TIMEOUT)
         resp.encoding = resp.apparent_encoding or "euc-jp"
         if resp.status_code == 200:
             return BeautifulSoup(resp.text, "lxml")
@@ -88,7 +91,7 @@ def fetch_odds(race_id: str) -> Dict[int, Dict]:
     time.sleep(REQUEST_DELAY)
 
     try:
-        resp = requests.get(url, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT)
+        resp = session.get(url, timeout=REQUEST_TIMEOUT)
         if resp.status_code != 200:
             print(f"  [WARN] オッズAPI HTTP {resp.status_code}")
             return {}

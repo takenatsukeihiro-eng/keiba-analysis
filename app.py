@@ -53,7 +53,7 @@ def analyze():
     surface_override = data.get("surface", "").strip()
     distance_override = data.get("distance", 0)
     race_class = data.get("race_class", "").strip()
-    history_n = int(data.get("history_n", 10))
+    history_n = int(data.get("history_n", 5)) # デフォルトを5件に削減して高速化
 
     if not race_id:
         return jsonify({"error": "レースIDを入力してください"}), 400
@@ -163,8 +163,8 @@ def run_analysis(
         horse_name = entry.get("馬名", f"馬{i+1}")
         horse_id = entry.get("horse_id", "")
         
-        # リクエストの一致を防ぐために少し待機時間を多めにずらす
-        time.sleep(random.uniform(2.0, 4.0))
+        # リクエストの集中を防ぎつつ、30秒以内に終わるように調整
+        time.sleep(random.uniform(0.5, 1.5))
         
         if not horse_id:
             return horse_name, [], f"{horse_name}: horse_id不明"
@@ -176,8 +176,8 @@ def run_analysis(
         except Exception as e:
             return horse_name, [], f"{horse_name}: 過去成績取得エラー - {str(e)}"
 
-    # 並列実行 (安定性を最優先し、一旦1スレッド=順次処理に戻す)
-    with ThreadPoolExecutor(max_workers=1) as executor:
+    # 並列実行 (30秒制限を回避するため4スレッドで実行)
+    with ThreadPoolExecutor(max_workers=4) as executor:
         results = list(executor.map(fetch_single_horse, enumerate(entries)))
 
     for horse_name, history, error in results:
