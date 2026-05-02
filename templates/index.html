@@ -542,9 +542,14 @@
         analysisData = data;
         renderResults(data);
         
-        // URLを更新（履歴に追加）
-        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?race_id=' + raceId;
-        window.history.pushState({ path: newUrl }, '', newUrl);
+        // URLを更新（履歴に追加）- 失敗しても分析表示を妨げないようにする
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.set('race_id', raceId);
+          window.history.pushState({}, '', url.toString());
+        } catch (urlErr) {
+          console.error('URL update failed:', urlErr);
+        }
 
         document.getElementById('results').classList.add('show');
         document.getElementById('raceHeaderCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
