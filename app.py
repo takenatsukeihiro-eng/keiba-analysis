@@ -163,8 +163,8 @@ def run_analysis(
         horse_name = entry.get("馬名", f"馬{i+1}")
         horse_id = entry.get("horse_id", "")
         
-        # リクエストの集中を防ぎつつ、30秒以内に終わるように調整
-        time.sleep(random.uniform(0.5, 1.5))
+        # スマホ版優先＆セッション利用で高速化したため、待機時間をさらに短縮
+        time.sleep(random.uniform(0.2, 0.8))
         
         if not horse_id:
             return horse_name, [], f"{horse_name}: horse_id不明"
@@ -176,8 +176,8 @@ def run_analysis(
         except Exception as e:
             return horse_name, [], f"{horse_name}: 過去成績取得エラー - {str(e)}"
 
-    # 並列実行 (30秒制限を回避するため4スレッドで実行)
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    # 並列実行 (30秒制限を回避するため6スレッドで実行)
+    with ThreadPoolExecutor(max_workers=6) as executor:
         results = list(executor.map(fetch_single_horse, enumerate(entries)))
 
     for horse_name, history, error in results:

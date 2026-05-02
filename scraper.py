@@ -40,7 +40,7 @@ def _get(url: str) -> Optional[BeautifulSoup]:
         resp = session.get(url, timeout=REQUEST_TIMEOUT)
         resp.encoding = resp.apparent_encoding or "euc-jp"
         if resp.status_code == 200:
-            return BeautifulSoup(resp.text, "lxml")
+            return BeautifulSoup(resp.text, "html.parser")
         print(f"  [WARN] HTTP {resp.status_code}: {url}")
         # 403エラー（アクセス拒否）などの場合は情報を残す
         if resp.status_code == 403:
@@ -287,73 +287,54 @@ def fetch_horse_history(horse_id: str, n: int = 10) -> List[Dict]:
     print(f"  [INFO] 過去成績取得: {horse_id}")
     time.sleep(REQUEST_DELAY)
 
-    # 1. PC版での取得を試行
-    soup = _get(url)
-    if soup:
-        # 成績テーブルを探す
-        perf_table = (
-            soup.find("table", {"summary": "全競走成績"}) or 
-            soup.select_one("table.db_h_race_results") or 
-            soup.select_one("table[class*='result']")
-        )
-        if perf_table:
-            # ヘッダー取得
-            header_row = perf_table.select("tr")[0] if perf_table.select("tr") else None
-            if header_row:
-                headers = [_clean(th.get_text()) for th in header_row.select("th, td")]
-                data_rows = perf_table.select("tr")[1:]
-                for row in data_rows[:n]:
-                    cells = row.select("td")
-                    if len(cells) < 5: continue
-                    record = {}
-                    cell_texts = [_clean(c.get_text()) for c in cells]
-                    for i, h in enumerate(headers):
-                        if i < len(cell_texts):
-                            val = cell_texts[i]
-                            if h in ("日付", "開催日"): record["開催日"] = val
-                            elif h in ("開催", "競馬場"):
-                                track_match = re.search(r"(札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉)", val)
-                                record["競馬場"] = track_match.group(1) if track_match else val
-                            elif h in ("レース名",): record["レース名"] = val
-                            elif h in ("頭数",): record["頭数"] = _safe_int(val)
-                            elif h in ("枠番", "枠"): record["枠番"] = _safe_int(val)
-                            elif h in ("馬番",): record["馬番"] = _safe_int(val)
-                            elif h in ("オッズ",): record["オッズ"] = _safe_float(val)
-                            elif h in ("人気",): record["人気"] = _safe_int(val)
-                            elif h in ("着順",): record["着順"] = _safe_int(val) if val.isdigit() else val
-                            elif h in ("タイム", "走破タイム"): record["タイム"] = val
-                            elif h in ("通過",): record["通過順位"] = val
-                            elif h in ("上り", "上がり", "上がり3F"): record["上がり3F"] = _safe_float(val)
-                            elif h in ("距離",):
-                                if val.startswith("芝"):
-                                    record["芝ダート"] = "芝"; record["距離"] = _safe_int(val[1:])
-                                elif val.startswith("ダ"):
-                                    record["芝ダート"] = "ダート"; record["距離"] = _safe_int(val[1:])
-                                else: record["距離"] = _safe_int(val)
-                            elif h in ("馬場",): record["馬場"] = val
-                    if record.get("開催日") or record.get("着順"):
-                        results.append(record)
-                if results:
-                    print(f"    → PC版から {len(results)} 走取得")
-                    return results
-
-    # 2. スマホ版での取得を試行 (PC版がブロックされている場合などのフォールバック)
-    print(f"    [INFO] スマホ版から取得を試行します: {horse_id}")
+    results = []
+    
+    # Render等のクラウド環境ではPC版(db.netkeiba.com)がブロックされることが多いため、
+    # 最初からブロックの緩いスマホ版(db.sp.netkeiba.com)をメインに使用する
     url_sp = HORSE_SP_RESULT_URL.format(horse_id=horse_id)
-    # スマホ版はUser-AgentをiPhoneにして取得
     headers_sp = REQUEST_HEADERS.copy()
     headers_sp["User-Agent"] = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1"
     
     try:
         resp = session.get(url_sp, headers=headers_sp, timeout=REQUEST_TIMEOUT)
         if resp.status_code == 200:
-            soup_sp = BeautifulSoup(resp.text, "lxml")
+            soup_sp = BeautifulSoup(resp.text, "html.parser")
             results = _parse_sp_horse_history(soup_sp, n)
             if results:
-                print(f"    → スマホ版から {len(results)} 走取得")
+                print(f"    → スマホ版から {len(results)} 走取得: {horse_id}")
                 return results
+        else:
+            print(f"    [WARN] スマホ版取得失敗 (HTTP {resp.status_code}): {horse_id}")
     except Exception as e:
-        print(f"    [ERROR] スマホ版取得失敗: {e}")
+        print(f"    [ERROR] スマホ版取得エラー: {e} ({horse_id})")
+
+    # 万が一スマホ版がダメな場合の最終フォールバックとしてPC版を試す
+    print(f"    [INFO] PC版での取得を最終試行します: {horse_id}")
+    soup = _get(url)
+    if soup:
+        perf_table = (
+            soup.find("table", {"summary": "全競走成績"}) or 
+            soup.select_one("table.db_h_race_results") or 
+            soup.select_one("table[class*='result']")
+        )
+        if perf_table:
+            # (PC版のパースロジックを簡略化して継続)
+            rows = perf_table.select("tr")[1:n+1]
+            for row in rows:
+                cells = row.select("td")
+                if len(cells) < 10: continue
+                record = {
+                    "開催日": _clean(cells[0].get_text()),
+                    "レース名": _clean(cells[4].get_text()),
+                    "着順": _safe_int(cells[11].get_text()),
+                }
+                # 必要な情報を最小限取得
+                dist_val = _clean(cells[14].get_text())
+                if dist_val.startswith("芝"): record["芝ダート"] = "芝"
+                elif dist_val.startswith("ダ"): record["芝ダート"] = "ダート"
+                record["距離"] = _safe_int(dist_val[1:])
+                results.append(record)
+            if results: return results
 
     print(f"    [WARN] 過去成績が取得できませんでした: {horse_id}")
     return []
