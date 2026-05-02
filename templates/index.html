@@ -493,10 +493,19 @@
       
       // 動画再生の準備
       if (video) {
+        video.onerror = () => {
+          console.log("Video load failed, falling back to animation");
+          videoContainer.classList.remove('active');
+          horseAnimation.style.display = 'block';
+        };
         videoContainer.classList.add('active');
-        horseAnimation.style.display = 'none'; // 動画がある時は馬のアニメーションを隠す
+        horseAnimation.style.display = 'none'; 
         video.currentTime = 0;
-        video.play().catch(err => console.log("Video auto-play failed: ", err));
+        video.play().catch(err => {
+          console.log("Video auto-play failed: ", err);
+          videoContainer.classList.remove('active');
+          horseAnimation.style.display = 'block';
+        });
       }
       
       document.getElementById('results').classList.remove('show');
@@ -513,7 +522,7 @@
       const msgTimer = setInterval(() => {
         msgIdx = Math.min(msgIdx + 1, msgs.length - 1);
         loadingText.textContent = msgs[msgIdx];
-      }, 8000);
+      }, 4000); // 並列化に合わせて間隔を短縮
 
       try {
         const body = {
@@ -555,7 +564,14 @@
         document.getElementById('raceHeaderCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch (err) {
         clearInterval(msgTimer);
-        alert('エラーが発生しました: ' + err.message);
+        let errorMsg = err.message;
+        if (err.name === 'AbortError') {
+          errorMsg = 'タイムアウトしました。通信環境の良い場所で再度お試しください。';
+        } else if (!navigator.onLine) {
+          errorMsg = 'インターネットに接続されていません。';
+        }
+        alert('分析中にエラーが発生しました: ' + errorMsg);
+        console.error('Analysis error:', err);
       } finally {
         btn.disabled = false;
         loading.classList.remove('active');

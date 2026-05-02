@@ -8,6 +8,7 @@ import os
 import time
 import traceback
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
 from flask import Flask, jsonify, render_template, request, send_file
 
@@ -74,8 +75,12 @@ def analyze():
 @app.route("/api/video")
 def serve_video():
     """動画ファイルを配信するAPI (デプロイ環境では無効または代替パス)"""
-    video_path = r"C:\Users\鈴木健史\Desktop\download.MP4"
+    # ユーザーのデスクトップパスを動的に取得（ローカル環境用）
+    user_home = os.path.expanduser("~")
+    video_path = os.path.join(user_home, "Desktop", "download.MP4")
+    
     if not os.path.exists(video_path):
+        # ファイルがない場合は404を返す
         return "Video not found", 404
     return send_file(video_path, mimetype="video/mp4")
 
@@ -147,26 +152,31 @@ def run_analysis(
 
     steps[-1]["status"] = "done"
 
-    # ── STEP 2: 各馬の過去成績取得 ──
+    # ── STEP 2: 各馬の過去成績取得（並列化） ──
     steps.append({"step": 2, "name": "過去成績取得", "status": "running"})
     all_history = {}
     quality_issues = []
 
-    for i, entry in enumerate(entries):
+    def fetch_single_horse(idx_entry):
+        i, entry = idx_entry
         horse_name = entry.get("馬名", f"馬{i+1}")
         horse_id = entry.get("horse_id", "")
-
         if not horse_id:
-            quality_issues.append(f"{horse_name}: horse_id不明")
-            all_history[horse_name] = []
-            continue
-
+            return horse_name, [], f"{horse_name}: horse_id不明"
         try:
             history = fetch_horse_history(horse_id, n=history_n)
-            all_history[horse_name] = history
+            return horse_name, history, None
         except Exception as e:
-            quality_issues.append(f"{horse_name}: 過去成績取得エラー - {str(e)}")
-            all_history[horse_name] = []
+            return horse_name, [], f"{horse_name}: 過去成績取得エラー - {str(e)}"
+
+    # 並列実行 (最大8スレッド)
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        results = list(executor.map(fetch_single_horse, enumerate(entries)))
+
+    for horse_name, history, error in results:
+        all_history[horse_name] = history
+        if error:
+            quality_issues.append(error)
 
     steps[-1]["status"] = "done"
 
