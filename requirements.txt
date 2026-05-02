@@ -4,3 +4,4 @@ lxml
 flask
 reportlab
 line-bot-sdk
+gunicorn

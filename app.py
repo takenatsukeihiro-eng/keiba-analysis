@@ -73,14 +73,17 @@ def analyze():
 
 @app.route("/api/video")
 def serve_video():
-    """デスクトップの動画ファイルを配信するAPI"""
+    """動画ファイルを配信するAPI (デプロイ環境では無効または代替パス)"""
     video_path = r"C:\Users\鈴木健史\Desktop\download.MP4"
     if not os.path.exists(video_path):
         return "Video not found", 404
     return send_file(video_path, mimetype="video/mp4")
 
 
-PDF_OUTPUT_DIR = r"C:\Users\鈴木健史\Desktop\分析結果"
+# PDF保存ディレクトリの設定（デプロイ環境とローカル環境で切り替え）
+PDF_OUTPUT_DIR = os.environ.get("PDF_OUTPUT_DIR", os.path.join(os.getcwd(), "output"))
+if not os.path.exists(PDF_OUTPUT_DIR):
+    os.makedirs(PDF_OUTPUT_DIR, exist_ok=True)
 
 
 @app.route("/api/export_pdf", methods=["POST"])
