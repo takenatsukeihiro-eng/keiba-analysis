@@ -60,12 +60,9 @@ CLASS_KEYWORDS = {
 # HTTP / スクレイピング設定
 # ============================================================
 REQUEST_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-    "Accept-Language": "ja,en;q=0.9",
-    "Referer": "https://db.netkeiba.com/",
-    "Cache-Control": "max-age=0",
-    "Upgrade-Insecure-Requests": "1",
+    "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
 }
 REQUEST_DELAY = 1.5  # 秒（リクエスト間隔）
 REQUEST_TIMEOUT = 15  # 秒

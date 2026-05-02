@@ -39,7 +39,7 @@ def _get(url: str) -> Optional[BeautifulSoup]:
         resp = session.get(url, timeout=REQUEST_TIMEOUT)
         resp.encoding = resp.apparent_encoding or "euc-jp"
         if resp.status_code == 200:
-            return BeautifulSoup(resp.text, "html.parser")
+            return BeautifulSoup(resp.text, "lxml")
         print(f"  [WARN] HTTP {resp.status_code}: {url}")
         # 403エラー（アクセス拒否）などの場合は情報を残す
         if resp.status_code == 403:
