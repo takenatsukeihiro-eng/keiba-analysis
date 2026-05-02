@@ -12,7 +12,6 @@ SHUTUBA_URL = "https://race.netkeiba.com/race/shutuba.html?race_id={race_id}"
 ODDS_URL    = "https://race.netkeiba.com/odds/index.html?type=b1&race_id={race_id}"
 ODDS_API_URL = "https://race.netkeiba.com/api/api_get_jra_odds.html?race_id={race_id}&type=1&action=update"
 HORSE_RESULT_URL = "https://db.netkeiba.com/horse/result/{horse_id}/"
-HORSE_SP_RESULT_URL = "https://db.sp.netkeiba.com/horse/result/{horse_id}/"
 HORSE_TOP_URL = "https://db.netkeiba.com/horse/{horse_id}/"
 RACE_RESULT_URL = "https://db.netkeiba.com/race/{race_id}/"
 RACE_LIST_URL = "https://db.netkeiba.com/race/list/"
@@ -61,8 +60,11 @@ CLASS_KEYWORDS = {
 # HTTP / スクレイピング設定
 # ============================================================
 REQUEST_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
     "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
 }
 REQUEST_DELAY = 1.5  # 秒（リクエスト間隔）

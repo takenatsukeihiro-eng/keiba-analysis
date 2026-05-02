@@ -8,8 +8,6 @@ import os
 import time
 import traceback
 from datetime import datetime
-import random
-from concurrent.futures import ThreadPoolExecutor
 
 from flask import Flask, jsonify, render_template, request, send_file
 
@@ -53,7 +51,7 @@ def analyze():
     surface_override = data.get("surface", "").strip()
     distance_override = data.get("distance", 0)
     race_class = data.get("race_class", "").strip()
-    history_n = int(data.get("history_n", 5)) # デフォルトを5件に削減して高速化
+    history_n = int(data.get("history_n", 10))
 
     if not race_id:
         return jsonify({"error": "レースIDを入力してください"}), 400
@@ -76,12 +74,8 @@ def analyze():
 @app.route("/api/video")
 def serve_video():
     """動画ファイルを配信するAPI (デプロイ環境では無効または代替パス)"""
-    # ユーザーのデスクトップパスを動的に取得（ローカル環境用）
-    user_home = os.path.expanduser("~")
-    video_path = os.path.join(user_home, "Desktop", "download.MP4")
-    
+    video_path = r"C:\Users\鈴木健史\Desktop\download.MP4"
     if not os.path.exists(video_path):
-        # ファイルがない場合は404を返す
         return "Video not found", 404
     return send_file(video_path, mimetype="video/mp4")
 
@@ -153,37 +147,26 @@ def run_analysis(
 
     steps[-1]["status"] = "done"
 
-    # ── STEP 2: 各馬の過去成績取得（並列化） ──
+    # ── STEP 2: 各馬の過去成績取得 ──
     steps.append({"step": 2, "name": "過去成績取得", "status": "running"})
     all_history = {}
     quality_issues = []
 
-    def fetch_single_horse(idx_entry):
-        i, entry = idx_entry
+    for i, entry in enumerate(entries):
         horse_name = entry.get("馬名", f"馬{i+1}")
         horse_id = entry.get("horse_id", "")
-        
-        # スマホ版優先＆セッション利用で高速化したため、待機時間をさらに短縮
-        time.sleep(random.uniform(0.2, 0.8))
-        
+
         if not horse_id:
-            return horse_name, [], f"{horse_name}: horse_id不明"
+            quality_issues.append(f"{horse_name}: horse_id不明")
+            all_history[horse_name] = []
+            continue
+
         try:
             history = fetch_horse_history(horse_id, n=history_n)
-            if not history:
-                return horse_name, [], f"{horse_name}: 過去成績が見つかりませんでした (ID:{horse_id})"
-            return horse_name, history, None
+            all_history[horse_name] = history
         except Exception as e:
-            return horse_name, [], f"{horse_name}: 過去成績取得エラー - {str(e)}"
-
-    # 並列実行 (30秒制限を回避するため6スレッドで実行)
-    with ThreadPoolExecutor(max_workers=6) as executor:
-        results = list(executor.map(fetch_single_horse, enumerate(entries)))
-
-    for horse_name, history, error in results:
-        all_history[horse_name] = history
-        if error:
-            quality_issues.append(error)
+            quality_issues.append(f"{horse_name}: 過去成績取得エラー - {str(e)}")
+            all_history[horse_name] = []
 
     steps[-1]["status"] = "done"
 
