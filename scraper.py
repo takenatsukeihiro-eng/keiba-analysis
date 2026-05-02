@@ -39,7 +39,7 @@ def _get(url: str) -> Optional[BeautifulSoup]:
         resp = session.get(url, timeout=REQUEST_TIMEOUT)
         resp.encoding = resp.apparent_encoding or "euc-jp"
         if resp.status_code == 200:
-            return BeautifulSoup(resp.text, "lxml")
+            return BeautifulSoup(resp.text, "html.parser")
         print(f"  [WARN] HTTP {resp.status_code}: {url}")
         # 403エラー（アクセス拒否）などの場合は情報を残す
         if resp.status_code == 403:
@@ -297,7 +297,11 @@ def fetch_horse_history(horse_id: str, n: int = 10) -> List[Dict]:
             return []
 
     # 成績テーブルを探す
-    perf_table = soup.select_one("table.db_h_race_results, table[class*='result']")
+    perf_table = (
+        soup.find("table", {"summary": "全競走成績"}) or 
+        soup.select_one("table.db_h_race_results") or 
+        soup.select_one("table[class*='result']")
+    )
     if not perf_table:
         # テーブルIDで探す
         perf_table = soup.select_one("#contents table.nk_tb_common")
