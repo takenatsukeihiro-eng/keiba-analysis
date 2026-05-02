@@ -541,6 +541,11 @@
 
         analysisData = data;
         renderResults(data);
+        
+        // URLを更新（履歴に追加）
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?race_id=' + raceId;
+        window.history.pushState({ path: newUrl }, '', newUrl);
+
         document.getElementById('results').classList.add('show');
         document.getElementById('raceHeaderCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch (err) {
@@ -1059,6 +1064,26 @@
         btn.textContent = '📄 PDF保存';
       }
     }
+    window.addEventListener('popstate', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const raceId = urlParams.get('race_id');
+      if (raceId) {
+        document.getElementById('raceId').value = raceId;
+        startAnalysis(new Event('submit'));
+      }
+    });
+
+    // 初期ロード時にURLパラメータがあれば実行
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const raceId = urlParams.get('race_id');
+      if (raceId) {
+        document.getElementById('raceId').value = raceId;
+        setTimeout(() => {
+          document.getElementById('analyzeForm').dispatchEvent(new Event('submit'));
+        }, 500);
+      }
+    });
   </script>
 </body>
 
