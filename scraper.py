@@ -38,6 +38,9 @@ def _get(url: str) -> Optional[BeautifulSoup]:
         if resp.status_code == 200:
             return BeautifulSoup(resp.text, "lxml")
         print(f"  [WARN] HTTP {resp.status_code}: {url}")
+        # 403エラー（アクセス拒否）などの場合は情報を残す
+        if resp.status_code == 403:
+            print("  [ERROR] アクセスが拒否されました (403 Forbidden)。制限を受けている可能性があります。")
     except Exception as e:
         print(f"  [ERROR] {e}: {url}")
     return None

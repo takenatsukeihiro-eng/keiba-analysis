@@ -163,21 +163,21 @@ def run_analysis(
         horse_name = entry.get("馬名", f"馬{i+1}")
         horse_id = entry.get("horse_id", "")
         
-        # リクエストの一致を防ぐために少し待機時間をずらす
-        time.sleep(random.uniform(0, 2.0))
+        # リクエストの一致を防ぐために少し待機時間を多めにずらす
+        time.sleep(random.uniform(2.0, 4.0))
         
         if not horse_id:
             return horse_name, [], f"{horse_name}: horse_id不明"
         try:
             history = fetch_horse_history(horse_id, n=history_n)
             if not history:
-                return horse_name, [], f"{horse_name}: 過去成績が見つかりませんでした"
+                return horse_name, [], f"{horse_name}: 過去成績が見つかりませんでした (ID:{horse_id})"
             return horse_name, history, None
         except Exception as e:
             return horse_name, [], f"{horse_name}: 過去成績取得エラー - {str(e)}"
 
-    # 並列実行 (安定性のために最大3スレッドに制限)
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    # 並列実行 (安定性を最優先し、一旦1スレッド=順次処理に戻す)
+    with ThreadPoolExecutor(max_workers=1) as executor:
         results = list(executor.map(fetch_single_horse, enumerate(entries)))
 
     for horse_name, history, error in results:
