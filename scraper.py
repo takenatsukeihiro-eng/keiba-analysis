@@ -282,10 +282,12 @@ def fetch_horse_history(horse_id: str, n: int = 10) -> List[Dict]:
 
     soup = _get(url)
     if not soup:
+        print(f"    [WARN] 過去成績ページが取得できませんでした (403/404?): {horse_id}")
         # フォールバック: トップページ
         url2 = HORSE_TOP_URL.format(horse_id=horse_id)
         soup = _get(url2)
         if not soup:
+            print(f"    [WARN] 馬トップページも取得できませんでした: {horse_id}")
             return []
 
     # 成績テーブルを探す
@@ -301,7 +303,7 @@ def fetch_horse_history(horse_id: str, n: int = 10) -> List[Dict]:
                     perf_table = t
                     break
     if not perf_table:
-        print(f"    [WARN] 成績テーブルが見つかりません: {horse_id}")
+        print(f"    [WARN] 成績テーブルが見つかりません: {horse_id} (ページ内容が期待と異なるか、アクセス制限の可能性があります)")
         return []
 
     # ヘッダー取得

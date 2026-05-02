@@ -8,6 +8,7 @@ import os
 import time
 import traceback
 from datetime import datetime
+import random
 from concurrent.futures import ThreadPoolExecutor
 
 from flask import Flask, jsonify, render_template, request, send_file
@@ -161,16 +162,22 @@ def run_analysis(
         i, entry = idx_entry
         horse_name = entry.get("馬名", f"馬{i+1}")
         horse_id = entry.get("horse_id", "")
+        
+        # リクエストの一致を防ぐために少し待機時間をずらす
+        time.sleep(random.uniform(0, 2.0))
+        
         if not horse_id:
             return horse_name, [], f"{horse_name}: horse_id不明"
         try:
             history = fetch_horse_history(horse_id, n=history_n)
+            if not history:
+                return horse_name, [], f"{horse_name}: 過去成績が見つかりませんでした"
             return horse_name, history, None
         except Exception as e:
             return horse_name, [], f"{horse_name}: 過去成績取得エラー - {str(e)}"
 
-    # 並列実行 (最大8スレッド)
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    # 並列実行 (安定性のために最大3スレッドに制限)
+    with ThreadPoolExecutor(max_workers=3) as executor:
         results = list(executor.map(fetch_single_horse, enumerate(entries)))
 
     for horse_name, history, error in results:
