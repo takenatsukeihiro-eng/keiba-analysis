@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>競馬データ分析</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a56db">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+  <style>
+    .btn-netkeiba {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 20px;
+      background: linear-gradient(135deg, #1a56db, #1e40af);
+      color: #fff;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-sans);
+      font-size: 0.88rem;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: var(--transition);
+      box-shadow: 0 2px 8px rgba(26, 86, 219, 0.25);
+    }
+    .btn-netkeiba:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(26, 86, 219, 0.35);
+    }
+    .btn-netkeiba:active {
+      transform: translateY(0);
+    }
+    .btn-pdf {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 20px;
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-sans);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: var(--transition);
+      box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25);
+    }
+    .btn-pdf:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(22, 163, 74, 0.35);
+    }
+    .btn-pdf:active { transform: translateY(0); }
+    .btn-pdf:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    #pdfMessage {
+      font-size: 0.82rem;
+      margin-top: 6px;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      display: none;
+    }
+    #pdfMessage.success { background: #dcfce7; color: #15803d; display: block; }
+    #pdfMessage.error   { background: #fee2e2; color: #dc2626; display: block; }
+
+    /* 妙味指数 */
+    .value-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .value-over  { background: #fee2e2; color: #dc2626; }  /* 過剰人気 */
+    .value-fair  { background: #f1f5f9; color: #64748b; }  /* 適正 */
+    .value-under { background: #dcfce7; color: #16a34a; }  /* 過少人気 */
+
+    /* 妙味分析カード */
+    .value-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 640px) { .value-grid { grid-template-columns: 1fr; } }
+    .value-section-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      padding: 4px 10px;
+      border-radius: 8px;
+    }
+    .value-section-title.under { background: #dcfce7; color: #16a34a; }
+    .value-section-title.over  { background: #fee2e2; color: #dc2626; }
+    .value-horse-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .value-horse-row:last-child { border-bottom: none; }
+    .vi-bar-wrap { flex: 1; background: #f1f5f9; border-radius: 6px; height: 8px; overflow: hidden; }
+    .vi-bar { height: 100%; border-radius: 6px; }
+    .vi-bar.under { background: #22c55e; }
+    .vi-bar.over  { background: #ef4444; }
+    .vi-num { font-size: 0.78rem; font-weight: 700; min-width: 36px; text-align: right; }
+    .vi-num.under { color: #16a34a; }
+    .vi-num.over  { color: #dc2626; }
+
+    /* タブUI */
+    .entry-tabs {
+      display: flex;
+      gap: 6px;
+      background: rgba(99,102,241,0.06);
+      border-radius: 10px;
+      padding: 4px;
+    }
+    .entry-tab {
+      padding: 7px 18px;
+      border: none;
+      border-radius: 7px;
+      font-family: var(--font-sans);
+      font-size: 0.83rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-secondary);
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+    .entry-tab:hover {
+      background: rgba(99,102,241,0.1);
+      color: var(--accent);
+    }
+    .entry-tab.active {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+    }
+
+    /* 動画追加用のスタイル */
+    .video-container {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .video-container.active {
+      display: flex;
+    }
+    #loadingVideo {
+      max-width: 600px;
+      width: 90%;
+      border-radius: var(--radius);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div>
+          <h1>競馬データ分析</h1>
+          <p>netkeiba.com からレースデータを取得し、脚質・展開・枠順傾向を分析</p>
+        </div>
+        <a href="https://www.netkeiba.com/" target="_blank" rel="noopener noreferrer" class="btn-netkeiba">
+          🏇 netkeiba を開く
+        </a>
+      </div>
+    </header>
+
+    <!-- Input Form -->
+    <section class="form-section card">
+      <form id="analyzeForm" onsubmit="return startAnalysis(event)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>レースID</label>
+            <input type="text" id="raceId" placeholder="例: 202506010811" required>
+          </div>
+          <div class="form-group">
+            <label>競馬場</label>
+            <select id="track">
+              <option value="">自動</option>
+              <option value="札幌">札幌</option>
+              <option value="函館">函館</option>
+              <option value="福島">福島</option>
+              <option value="新潟">新潟</option>
+              <option value="東京">東京</option>
+              <option value="中山">中山</option>
+              <option value="中京">中京</option>
+              <option value="京都">京都</option>
+              <option value="阪神">阪神</option>
+              <option value="小倉">小倉</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>コース</label>
+            <select id="surface">
+              <option value="">自動</option>
+              <option value="芝">芝</option>
+              <option value="ダート">ダート</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>距離</label>
+            <input type="number" id="distance" placeholder="自動" min="800" max="3600" step="100">
+          </div>
+          <div class="form-group">
+            <label>クラス</label>
+            <select id="raceClass">
+              <option value="">指定なし</option>
+              <option value="G1">G1</option>
+              <option value="G2">G2</option>
+              <option value="G3">G3</option>
+              <option value="OP">OP/L</option>
+              <option value="3勝">3勝</option>
+              <option value="2勝">2勝</option>
+              <option value="1勝">1勝</option>
+              <option value="新馬">新馬</option>
+              <option value="未勝利">未勝利</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <button type="submit" class="btn-primary" id="submitBtn">分析開始</button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading">
+      <div class="video-container" id="videoContainer">
+        <video id="loadingVideo" src="/api/video" muted loop playsinline></video>
+      </div>
+      <div class="horse-track-container" id="horseAnimation">
+        <div class="horse-scene">
+          <!-- 砂煙 -->
+          <div class="dust dust1"></div>
+          <div class="dust dust2"></div>
+          <div class="dust dust3"></div>
+          <!-- 馬 -->
+          <div class="running-horse">🏇</div>
+        </div>
+        <!-- 地面 -->
+        <div class="track-ground">
+          <div class="track-line"></div>
+        </div>
+      </div>
+      <div class="loading-text" id="loadingText">出馬表を取得中...</div>
+      <div class="loading-dots"><span></span><span></span><span></span></div>
+    </div>
+
+    <!-- Results -->
+    <div id="results">
+      <!-- Race Header -->
+      <div class="card animate-in" id="raceHeaderCard" style="margin-bottom:24px">
+        <div class="race-header">
+          <div>
+            <div class="race-title" id="raceName"></div>
+            <div class="race-meta" id="raceMeta"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+            <div style="text-align:right;color:var(--text-muted);font-size:0.8rem" id="generatedAt"></div>
+            <button class="btn-pdf" id="pdfBtn" onclick="exportPdf()">
+              📄 PDF保存
+            </button>
+            <div id="pdfMessage"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pace & Style & Recommendation -->
+      <div class="pace-section animate-in">
+        <div class="card">
+          <div class="card-title"><span class="icon">⚡</span>展開予想</div>
+          <div id="paceDetail"></div>
+          <div class="style-distribution" id="styleDistribution"
+            style="margin-top:16px; border-top:1px solid var(--border); padding-top:16px;"></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">📈</span>推奨馬</div>
+          <div id="topRecommendations" class="rec-grid"></div>
+        </div>
+      </div>
+
+      <!-- Betting Suggestions -->
+      <div class="card animate-in" style="margin-bottom:24px">
+        <div class="card-title"><span class="icon">💰</span>推奨買い目</div>
+        <div id="bettingSuggestions" class="bet-grid"></div>
+      </div>
+
+      <!-- Odds Value Analysis -->
+      <div class="card animate-in" id="valueAnalysisCard" style="margin-bottom:24px;display:none">
+        <div class="card-title"><span class="icon">💡</span>オッズ妙味分析 <span style="color:var(--text-muted);font-weight:400;font-size:0.82rem">(理論勝率 vs 市場評価)</span></div>
+        <div class="value-grid" id="valueGrid"></div>
+      </div>
+
+      <!-- Entries Table -->
+      <div class="card animate-in" style="margin-bottom:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:0"><span class="icon">🏇</span>出走馬一覧 <span id="entryCount" style="color:var(--text-muted);font-weight:400"></span></div>
+          <!-- Tab Buttons -->
+          <div class="entry-tabs">
+            <button class="entry-tab active" id="tab-basic" onclick="switchTab('basic')">📋 基本情報</button>
+            <button class="entry-tab" id="tab-analysis" onclick="switchTab('analysis')">📊 分析情報</button>
+          </div>
+        </div>
+
+        <!-- TAB: 基本情報 -->
+        <div id="pane-basic" class="table-wrapper" style="margin-bottom:0">
+          <table class="entries-table" id="entriesTableBasic">
+            <thead>
+              <tr>
+                <th>印</th>
+                <th>枠</th>
+                <th>馬番</th>
+                <th>馬名</th>
+                <th>性齢</th>
+                <th>騎手</th>
+                <th>斤量</th>
+                <th>馬体重</th>
+                <th>人気</th>
+                <th>オッズ</th>
+                <th>能力指数</th>
+                <th>期待値<br><span style="font-size:0.7rem;font-weight:400">(EV)</span></th>
+                <th>妙味指数</th>
+                <th>人気評価</th>
+                <th>分析コメント</th>
+              </tr>
+            </thead>
+            <tbody id="entriesBodyBasic"></tbody>
+          </table>
+        </div>
+
+        <!-- TAB: 分析情報 -->
+        <div id="pane-analysis" class="table-wrapper" style="margin-bottom:0;display:none">
+          <table class="entries-table" id="entriesTableAnalysis">
+            <thead>
+              <tr>
+                <th>印</th>
+                <th>枠</th>
+                <th>馬番</th>
+                <th>馬名</th>
+                <th>脚質</th>
+                <th>上がり3F</th>
+                <th>平均着順</th>
+                <th>勝率</th>
+                <th>複勝率</th>
+                <th>同コース</th>
+                <th>同距離</th>
+                <th>能力指数</th>
+                <th>自信度</th>
+                <th>分析コメント</th>
+              </tr>
+            </thead>
+            <tbody id="entriesBodyAnalysis"></tbody>
+          </table>
+        </div>
+      </div>
+
+
+      <!-- Post Position Trend -->
+      <div class="card animate-in" style="margin-bottom:24px" id="trendCard">
+        <div class="card-title"><span class="icon">📈</span>枠順傾向 <span id="trendInfo"
+            style="color:var(--text-muted);font-weight:400;font-size:0.82rem"></span></div>
+        <div class="trend-grid" id="trendGrid"></div>
+      </div>
+
+      <!-- Quality -->
+      <div class="card animate-in" style="margin-bottom:24px">
+        <div class="card-title"><span class="icon">✓</span>データ品質</div>
+        <div id="qualityContent"></div>
+      </div>
+
+      <!-- 人気順テーブル -->
+      <div class="card animate-in" style="margin-bottom:24px">
+        <div class="card-title"><span class="icon">🎯</span>人気順一覧 <span style="color:var(--text-muted);font-weight:400;font-size:0.82rem">（単勝オッズ昇順）</span></div>
+        <div class="table-wrapper" style="margin-bottom:0">
+          <table class="entries-table" id="popularityTable">
+            <thead>
+              <tr>
+                <th>人気</th>
+                <th>印</th>
+                <th>枠</th>
+                <th>馬番</th>
+                <th>馬名</th>
+                <th>性齢</th>
+                <th>騎手</th>
+                <th>馬体重</th>
+                <th>オッズ</th>
+                <th>期待値<br><span style="font-size:0.7rem;font-weight:400">(EV)</span></th>
+                <th>妙味指数</th>
+                <th>人気評価</th>
+                <th>能力指数</th>
+                <th>脚質</th>
+                <th>分析コメント</th>
+              </tr>
+            </thead>
+            <tbody id="popularityBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 能力指数順テーブル -->
+      <div class="card animate-in" style="margin-bottom:24px">
+        <div class="card-title"><span class="icon">🏆</span>能力指数順一覧 <span style="color:var(--text-muted);font-weight:400;font-size:0.82rem">（指数降順）</span></div>
+        <div class="table-wrapper" style="margin-bottom:0">
+          <table class="entries-table" id="abilityRankingTable">
+            <thead>
+              <tr>
+                <th>指数順位</th>
+                <th>能力指数</th>
+                <th>印</th>
+                <th>枠</th>
+                <th>馬番</th>
+                <th>馬名</th>
+                <th>性齢</th>
+                <th>騎手</th>
+                <th>人気</th>
+                <th>オッズ</th>
+                <th>自信度</th>
+                <th>期待値<br><span style="font-size:0.7rem;font-weight:400">(EV)</span></th>
+                <th>妙味指数</th>
+                <th>脚質</th>
+                <th>分析コメント</th>
+              </tr>
+            </thead>
+            <tbody id="abilityRankingBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Horse Detail Modal -->
+  <div class="modal-overlay" id="modal" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="modalTitle"></h2>
+        <button class="modal-close"
+          onclick="document.getElementById('modal').classList.remove('active')">&times;</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>競馬データ分析 &mdash; Powered by netkeiba.com</p>
+  </footer>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+          console.log('SW registered!', reg);
+        }).catch(err => {
+          console.log('SW registration failed: ', err);
+        });
+      });
+    }
+  </script>
+
+  <script>
+    /* ============================================================
+       Frontend Logic
+       ============================================================ */
+
+    let analysisData = null;
+
+    async function startAnalysis(e) {
+      e.preventDefault();
+      const raceId = document.getElementById('raceId').value.trim();
+      if (!raceId) return;
+
+      const btn = document.getElementById('submitBtn');
+      const loading = document.getElementById('loading');
+      const video = document.getElementById('loadingVideo');
+      const videoContainer = document.getElementById('videoContainer');
+      const horseAnimation = document.getElementById('horseAnimation');
+      
+      btn.disabled = true;
+      loading.classList.add('active');
+      
+      // 動画再生の準備
+      if (video) {
+        videoContainer.classList.add('active');
+        horseAnimation.style.display = 'none'; // 動画がある時は馬のアニメーションを隠す
+        video.currentTime = 0;
+        video.play().catch(err => console.log("Video auto-play failed: ", err));
+      }
+      
+      document.getElementById('results').classList.remove('show');
+
+      const loadingText = document.getElementById('loadingText');
+      const msgs = [
+        '出馬表を取得中...',
+        '各馬の過去成績を取得中...',
+        '脚質・展開を分析中...',
+        '枠順傾向を集計中...',
+        'まもなく完了...',
+      ];
+      let msgIdx = 0;
+      const msgTimer = setInterval(() => {
+        msgIdx = Math.min(msgIdx + 1, msgs.length - 1);
+        loadingText.textContent = msgs[msgIdx];
+      }, 8000);
+
+      try {
+        const body = {
+          race_id: raceId,
+          track: document.getElementById('track').value,
+          surface: document.getElementById('surface').value,
+          distance: parseInt(document.getElementById('distance').value) || 0,
+          race_class: document.getElementById('raceClass').value,
+          history_n: 10,
+        };
+
+        const resp = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        const data = await resp.json();
+        clearInterval(msgTimer);
+
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+
+        analysisData = data;
+        renderResults(data);
+        document.getElementById('results').classList.add('show');
+        document.getElementById('raceHeaderCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (err) {
+        clearInterval(msgTimer);
+        alert('エラーが発生しました: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        loading.classList.remove('active');
+        if (video) {
+          video.pause();
+        }
+      }
+    }
+
+    function renderResults(d) {
+      // Race Header
+      document.getElementById('raceName').textContent = d.race_name || d.race_id;
+      const meta = document.getElementById('raceMeta');
+      meta.innerHTML = '';
+      if (d.surface) meta.innerHTML += `<span class="tag tag-surface">${d.surface}</span>`;
+      if (d.distance) meta.innerHTML += `<span class="tag tag-distance">${d.distance}m</span>`;
+      if (d.track) meta.innerHTML += `<span class="tag tag-direction">${d.track}</span>`;
+      if (d.direction) meta.innerHTML += `<span class="tag tag-direction">${d.direction}回り</span>`;
+      if (d.track_condition) meta.innerHTML += `<span class="tag tag-condition">馬場: ${d.track_condition}</span>`;
+      if (d.race_class) meta.innerHTML += `<span class="tag tag-class">${d.race_class}</span>`;
+      document.getElementById('generatedAt').textContent = d.generated_at || '';
+
+      // Pace
+      const p = d.pace_estimate || {};
+      const paceClass = 'pace-' + (p.pace || 'M');
+      const paceLabel = { H: 'ハイペース', M: 'ミドルペース', S: 'スローペース' }[p.pace] || '';
+      document.getElementById('paceDetail').innerHTML = `
+    <div class="pace-badge ${paceClass}">${p.pace || '?'}</div>
+    <div class="pace-info">
+      <h3>${paceLabel}</h3>
+      <p><strong>${p.reason || ''}</strong></p>
+      <p style="margin-top:8px; font-size:0.9rem; line-height:1.5; color:var(--text-secondary); background:rgba(99,102,241,0.05); padding:10px; border-radius:8px; border-left:4px solid var(--accent)">
+        ${p.comment || ''}
+      </p>
+      ${p['逃げ候補'] && p['逃げ候補'].length ? `<p style="margin-top:8px;color:var(--text-primary);font-size:0.85rem">逃げ候補: ${p['逃げ候補'].join(', ')}</p>` : ''}
+    </div>`;
+
+      // Style distribution
+      const sd = document.getElementById('styleDistribution');
+      sd.innerHTML = ['逃げ', '先行', '差し', '追込'].map(s =>
+        `<div class="style-item"><div class="count">${p[s] || 0}</div><div class="label">${s}</div></div>`
+      ).join('');
+
+      // Entries table — 2タブ分
+      const tbodyBasic    = document.getElementById('entriesBodyBasic');
+      const tbodyAnalysis = document.getElementById('entriesBodyAnalysis');
+      tbodyBasic.innerHTML = '';
+      tbodyAnalysis.innerHTML = '';
+      document.getElementById('entryCount').textContent = `(${d.entries.length}頭)`;
+
+      // Recommendation Ranking
+      const rec = d.recommendation || {};
+      const ranking = rec.ranking || [];
+      const rankingMap = {};
+      ranking.forEach(r => rankingMap[r['馬番']] = r);
+
+      d.entries.forEach((e, idx) => {
+        const r = rankingMap[e['馬番']] || {};
+        const markClass = { '◎': 'mark-honmei', '◯': 'mark-taikou', '▲': 'mark-anaume', '△': 'mark-renka' }[r['印']] || '';
+        const styleClass = { '逃げ': 'style-nige', '先行': 'style-senkou', '差し': 'style-sashi', '追込': 'style-oikomi' }[e['脚質']] || 'style-fumei';
+
+        const confPct = r['confidence'] != null ? r['confidence'] : null;
+        const confColor = confPct != null ? (confPct >= 80 ? '#22c55e' : confPct >= 60 ? '#f59e0b' : '#94a3b8') : '#94a3b8';
+        const confHtml = confPct != null
+          ? `<span style="color:${confColor};font-weight:600">${confPct}%</span>`
+          : '<span style="color:var(--text-muted)">-</span>';
+
+        const markCell = `<td class="num">${r['印'] ? `<span class="mark ${markClass}">${r['印']}</span>` : ''}</td>`;
+        const wakuCell = `<td class="num"><span class="waku waku-${e['枠番']}">${e['枠番']}</span></td>`;
+        const umabanCell = `<td class="num">${e['馬番']}</td>`;
+        const nameCell = `<td class="horse-name" onclick="showHorseDetail(${idx})" title="クリックで詳細">${e['馬名']}</td>`;
+
+        // ── 基本情報タブ ──
+        const trBasic = document.createElement('tr');
+        trBasic.innerHTML = `
+      ${markCell}${wakuCell}${umabanCell}${nameCell}
+      <td>${e['性齢'] || ''}</td>
+      <td>${e['騎手']}</td>
+      <td>${e['斤量']}</td>
+      <td>${e['馬体重'] || ''}</td>
+      <td class="num">${e['人気'] || '-'}</td>
+      <td><strong>${e['オッズ'] || '-'}</strong></td>
+      <td class="num"><span class="score-badge">${e['指数'] || '-'}</span></td>
+      <td class="num">${renderEvCell(e['期待値'])}</td>
+      <td class="num">${e['妙味指数'] != null ? e['妙味指数'].toFixed(2) : '-'}</td>
+      <td>${renderValueBadge(e['人気評価'])}</td>
+      <td style="font-size:0.75rem; color:var(--text-secondary); max-width:200px">${e['コメント'] || '-'}</td>`;
+        tbodyBasic.appendChild(trBasic);
+
+        // ── 分析情報タブ ──
+        const trAnalysis = document.createElement('tr');
+        trAnalysis.innerHTML = `
+      ${markCell}${wakuCell}${umabanCell}${nameCell}
+      <td><span class="style-badge ${styleClass}">${e['脚質']}</span></td>
+      <td>${e['平均上がり3F'] || '-'}</td>
+      <td>${e['平均着順'] || '-'}</td>
+      <td>${e['勝率'] ? e['勝率'] + '%' : '-'}</td>
+      <td>${e['複勝率'] ? e['複勝率'] + '%' : '-'}</td>
+      <td>${e['同コース成績'] || '-'}</td>
+      <td>${e['同距離成績'] || '-'}</td>
+      <td class="num"><span class="score-badge">${e['指数'] || '-'}</span></td>
+      <td class="num">${confHtml}</td>
+      <td style="font-size:0.75rem; color:var(--text-secondary); max-width:200px">${e['コメント'] || '-'}</td>`;
+        tbodyAnalysis.appendChild(trAnalysis);
+
+      });
+
+      // Odds Value Analysis card
+      renderValueAnalysis(d.entries);
+
+      // 人気順テーブル
+      renderPopularityTable(d.entries, rankingMap);
+
+      // 能力指数順テーブル
+      renderAbilityRankingTable(d.entries, rankingMap);
+
+      // Top Recommendations
+      const topRecs = ranking.slice(0, 3);
+      const recHtml = topRecs.map(r => {
+        const markClass = { '◎': 'mark-honmei', '◯': 'mark-taikou', '▲': 'mark-anaume' }[r['印']];
+        const confVal = r['confidence'] != null ? r['confidence'] : '-';
+        const confColor = r['confidence'] >= 80 ? '#22c55e' : r['confidence'] >= 60 ? '#f59e0b' : '#94a3b8';
+        return `
+      <div class="rec-horse-card">
+        <span class="mark ${markClass}">${r['印']}</span>
+        <div class="rec-horse-info">
+          <h4>${r['馬番']}. ${r['馬名']}</h4>
+          <p>総合スコア: <strong>${r['score']}</strong></p>
+          <p style="margin-top:4px">自信度: <strong style="color:${confColor}">${confVal}%</strong></p>
+        </div>
+      </div>`;
+      }).join('');
+      document.getElementById('topRecommendations').innerHTML = recHtml;
+
+      // Betting Suggestions
+      const bets = rec.bets || {};
+      const betHtml = Object.entries(bets).map(([category, items]) => {
+        if (!items || items.length === 0) return '';
+        const itemRows = items.map(it => `
+      <div class="bet-item">
+        <span class="bet-numbers">${Array.isArray(it['馬番']) ? it['馬番'].join(' - ') : it['馬番']}</span>
+        <span class="bet-note">${it['備考'] || ''}</span>
+      </div>`).join('');
+        return `
+      <div class="bet-card">
+        <h4>${category}</h4>
+        ${itemRows}
+      </div>`;
+      }).join('');
+      document.getElementById('bettingSuggestions').innerHTML = betHtml;
+
+      // Style distribution (optional, we could keep it or move it)
+      // document.getElementById('styleDistribution').innerHTML = ...
+
+      // Post position trend
+      const trend = d.post_position_trend || {};
+      const trendData = trend['枠番別成績'] || {};
+      const trendGrid = document.getElementById('trendGrid');
+      const trendInfo = document.getElementById('trendInfo');
+
+      if (Object.keys(trendData).length > 0) {
+        trendInfo.textContent = `(${trend['対象レース数(推定)'] || 0}レース / ${trend['対象走数'] || 0}走)`;
+        const maxRate = Math.max(...Object.values(trendData).map(v => v['複勝率'] || 0), 1);
+        trendGrid.innerHTML = Object.entries(trendData).map(([waku, stats]) => {
+          const winRate = stats['勝率'] || 0;
+          const placeRate = stats['複勝率'] || 0;
+          const barW = Math.round(placeRate / maxRate * 100);
+          const color = placeRate >= 40 ? 'var(--green)' : placeRate >= 20 ? 'var(--accent)' : 'var(--text-muted)';
+          return `<div class="trend-item">
+        <div class="trend-waku"><span class="waku waku-${waku}">${waku}</span></div>
+        <div class="trend-win" style="color:${color}">${placeRate}%</div>
+        <div class="trend-label">複勝率</div>
+        <div class="trend-bar"><div class="trend-bar-fill" style="width:${barW}%"></div></div>
+        <div style="margin-top:6px;font-size:0.72rem;color:var(--text-secondary)">${stats['戦数']}走 / 勝率${winRate}%</div>
+      </div>`;
+        }).join('');
+        document.getElementById('trendCard').style.display = '';
+      } else {
+        document.getElementById('trendCard').style.display = 'none';
+      }
+
+      // Quality
+      const qc = document.getElementById('qualityContent');
+      const issues = d.quality_issues || [];
+      if (issues.length === 0) {
+        qc.innerHTML = '<div class="quality-ok">全データ正常取得</div>';
+      } else {
+        qc.innerHTML = issues.map(iss => `<div class="quality-issue">${iss}</div>`).join('');
+      }
+    }
+
+    function renderValueBadge(label) {
+      if (!label || label === '-') return '<span style="color:var(--text-muted)">-</span>';
+      const cls = label === '過少人気' ? 'value-under' : label === '過剰人気' ? 'value-over' : 'value-fair';
+      const icon = label === '過少人気' ? '🟢' : label === '過剰人気' ? '🔴' : '⚪';
+      return `<span class="value-badge ${cls}">${icon} ${label}</span>`;
+    }
+
+    function renderEvCell(ev) {
+      if (ev == null) return '<span style="color:var(--text-muted)">-</span>';
+      const color = ev >= 1.5 ? '#16a34a' : ev >= 1.0 ? '#84cc16' : ev >= 0.7 ? '#f59e0b' : '#dc2626';
+      const bg    = ev >= 1.5 ? '#dcfce7' : ev >= 1.0 ? '#f0fdf4' : ev >= 0.7 ? '#fffbeb' : '#fee2e2';
+      return `<span style="display:inline-block;padding:2px 6px;border-radius:8px;background:${bg};color:${color};font-weight:700;font-size:0.82rem">${ev.toFixed(2)}</span>`;
+    }
+
+    function renderValueAnalysis(entries) {
+      const card = document.getElementById('valueAnalysisCard');
+      const grid = document.getElementById('valueGrid');
+      // オッズが取得できた馬のみ対象
+      const withOdds = entries.filter(e => e['妙味指数'] != null);
+      if (withOdds.length === 0) { card.style.display = 'none'; return; }
+      card.style.display = '';
+
+      // 過少人気 (妙味指数降順 top3)
+      const underPop = [...withOdds].filter(e => e['人気評価'] === '過少人気')
+        .sort((a, b) => b['妙味指数'] - a['妙味指数']).slice(0, 5);
+      // 過剰人気 (妙味指数昇順 top3)
+      const overPop = [...withOdds].filter(e => e['人気評価'] === '過剰人気')
+        .sort((a, b) => a['妙味指数'] - b['妙味指数']).slice(0, 5);
+
+      const maxVI = Math.max(...withOdds.map(e => e['妙味指数'] || 0), 1);
+
+      function horseRows(list, type) {
+        if (list.length === 0) return '<div style="color:var(--text-muted);font-size:0.82rem;padding:8px 0">該当なし</div>';
+        return list.map(e => {
+          const vi = e['妙味指数'];
+          const barW = type === 'under'
+            ? Math.round(vi / maxVI * 100)
+            : Math.round((1 - vi / maxVI) * 100 + 5);
+          const theo = e['理論勝率'] != null ? e['理論勝率'] + '%' : '-';
+          const impl = e['暗示勝率']  != null ? e['暗示勝率']  + '%' : '-';
+          const evLabel = e['期待値'] != null ? `EV ${e['期待値'].toFixed(2)}` : '';
+          const evColor = e['期待値'] >= 1.0 ? '#16a34a' : '#dc2626';
+          return `<div class="value-horse-row">
+            <div style="min-width:22px;font-weight:700;text-align:center">${e['馬番']}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e['馬名']}</div>
+              <div style="font-size:0.72rem;color:var(--text-muted)">理論${theo} / 市場${impl} / ${e['オッズ']}倍</div>
+              <div class="vi-bar-wrap" style="margin-top:4px"><div class="vi-bar ${type}" style="width:${Math.min(barW,100)}%"></div></div>
+            </div>
+            <div style="text-align:right">
+              <div class="vi-num ${type}">×${vi.toFixed(2)}</div>
+              ${evLabel ? `<div style="font-size:0.72rem;font-weight:700;color:${evColor}">${evLabel}</div>` : ''}
+            </div>
+          </div>`;
+        }).join('');
+      }
+
+      grid.innerHTML = `
+        <div>
+          <div class="value-section-title under">🟢 穴馬候補（過少人気）</div>
+          ${horseRows(underPop, 'under')}
+        </div>
+        <div>
+          <div class="value-section-title over">🔴 妙味なし（過剰人気）</div>
+          ${horseRows(overPop, 'over')}
+        </div>`;
+    }
+
+    function renderPopularityTable(entries, rankingMap) {
+      const tbody = document.getElementById('popularityBody');
+      tbody.innerHTML = '';
+
+      // 人気順（オッズ昇順）でソート。オッズなしは末尾へ
+      const sorted = [...entries].sort((a, b) => {
+        const oa = a['人気'] || 999;
+        const ob = b['人気'] || 999;
+        return oa - ob;
+      });
+
+      // entriesIndexMap: 馬番 → 元のidxを引くために
+      const idxMap = {};
+      entries.forEach((e, i) => idxMap[e['馬番']] = i);
+
+      sorted.forEach(e => {
+        const r = rankingMap[e['馬番']] || {};
+        const idx = idxMap[e['馬番']];
+        const markClass = { '◎': 'mark-honmei', '◯': 'mark-taikou', '▲': 'mark-anaume', '△': 'mark-renka' }[r['印']] || '';
+        const styleClass = { '逃げ': 'style-nige', '先行': 'style-senkou', '差し': 'style-sashi', '追込': 'style-oikomi' }[e['脚質']] || 'style-fumei';
+        const ninki = e['人気'] || '-';
+
+        // 人気1〜3位は背景色
+        let rowStyle = '';
+        if (ninki === 1) rowStyle = 'background:rgba(250,204,21,0.12);';
+        else if (ninki === 2) rowStyle = 'background:rgba(209,213,219,0.18);';
+        else if (ninki === 3) rowStyle = 'background:rgba(180,119,80,0.12);';
+
+        const ninkiLabel = ninki === 1 ? `<span style="font-weight:800;color:#d97706">⭐${ninki}</span>`
+                         : ninki === 2 ? `<span style="font-weight:700;color:#6b7280">🥈${ninki}</span>`
+                         : ninki === 3 ? `<span style="font-weight:700;color:#92400e">🥉${ninki}</span>`
+                         : `<span style="font-weight:600">${ninki}</span>`;
+
+        const tr = document.createElement('tr');
+        if (rowStyle) tr.style.cssText = rowStyle;
+        tr.innerHTML = `
+      <td class="num">${ninkiLabel}</td>
+      <td class="num">${r['印'] ? `<span class="mark ${markClass}">${r['印']}</span>` : ''}</td>
+      <td class="num"><span class="waku waku-${e['枠番']}">${e['枠番']}</span></td>
+      <td class="num">${e['馬番']}</td>
+      <td class="horse-name" onclick="showHorseDetail(${idx})" title="クリックで詳細">${e['馬名']}</td>
+      <td>${e['性齢'] || ''}</td>
+      <td>${e['騎手'] || ''}</td>
+      <td>${e['馬体重'] || ''}</td>
+      <td><strong>${e['オッズ'] || '-'}</strong></td>
+      <td class="num">${renderEvCell(e['期待値'])}</td>
+      <td class="num">${e['妙味指数'] != null ? e['妙味指数'].toFixed(2) : '-'}</td>
+      <td>${renderValueBadge(e['人気評価'])}</td>
+      <td class="num"><span class="score-badge">${e['指数'] || '-'}</span></td>
+      <td><span class="style-badge ${styleClass}">${e['脚質']}</span></td>
+      <td style="font-size:0.75rem; color:var(--text-secondary); max-width:200px">${e['コメント'] || '-'}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderAbilityRankingTable(entries, rankingMap) {
+      const tbody = document.getElementById('abilityRankingBody');
+      tbody.innerHTML = '';
+
+      // 指数降順でソート
+      const sorted = [...entries].sort((a, b) => {
+        const sa = a['指数'] || 0;
+        const sb = b['指数'] || 0;
+        return sb - sa;
+      });
+
+      const idxMap = {};
+      entries.forEach((e, i) => idxMap[e['馬番']] = i);
+
+      sorted.forEach((e, rankIdx) => {
+        const r = rankingMap[e['馬番']] || {};
+        const idx = idxMap[e['馬番']];
+        const markClass = { '◎': 'mark-honmei', '◯': 'mark-taikou', '▲': 'mark-anaume', '△': 'mark-renka' }[r['印']] || '';
+        const styleClass = { '逃げ': 'style-nige', '先行': 'style-senkou', '差し': 'style-sashi', '追込': 'style-oikomi' }[e['脚質']] || 'style-fumei';
+        
+        const rank = rankIdx + 1;
+        let rowStyle = '';
+        if (rank === 1) rowStyle = 'background:rgba(99,102,241,0.08);';
+        
+        const rankLabel = rank === 1 ? `<span style="font-weight:800;color:var(--accent)">🥇${rank}</span>`
+                        : rank === 2 ? `<span style="font-weight:700;color:#6b7280">🥈${rank}</span>`
+                        : rank === 3 ? `<span style="font-weight:700;color:#92400e">🥉${rank}</span>`
+                        : `<span style="font-weight:600">${rank}</span>`;
+
+        const tr = document.createElement('tr');
+        if (rowStyle) tr.style.cssText = rowStyle;
+        tr.innerHTML = `
+      <td class="num">${rankLabel}</td>
+      <td class="num"><span class="score-badge" style="font-size:1rem;padding:4px 10px">${e['指数'] || '-'}</span></td>
+      <td class="num">${r['印'] ? `<span class="mark ${markClass}">${r['印']}</span>` : ''}</td>
+      <td class="num"><span class="waku waku-${e['枠番']}">${e['枠番']}</span></td>
+      <td class="num">${e['馬番']}</td>
+      <td class="horse-name" onclick="showHorseDetail(${idx})" title="クリックで詳細">${e['馬名']}</td>
+      <td>${e['性齢'] || ''}</td>
+      <td>${e['騎手'] || ''}</td>
+      <td class="num">${e['人気'] || '-'}</td>
+      <td><strong>${e['オッズ'] || '-'}</strong></td>
+      <td class="num">${e['自信度'] ? e['自信度'] + '%' : '-'}</td>
+      <td class="num">${renderEvCell(e['期待値'])}</td>
+      <td class="num">${e['妙味指数'] != null ? e['妙味指数'].toFixed(2) : '-'}</td>
+      <td><span class="style-badge ${styleClass}">${e['脚質']}</span></td>
+      <td style="font-size:0.75rem; color:var(--text-secondary); max-width:200px">${e['コメント'] || '-'}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function showHorseDetail(idx) {
+      if (!analysisData) return;
+      const e = analysisData.entries[idx];
+      const rec = analysisData.recommendation || {};
+      const ranking = rec.ranking || [];
+      const r = ranking.find(x => x['馬番'] === e['馬番']) || {};
+      const factors = r['factors'] || {};
+
+      document.getElementById('modalTitle').textContent = e['馬名'];
+
+      let html = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
+      <div class="style-item"><div class="count">${e['馬番']}</div><div class="label">馬番</div></div>
+      <div class="style-item"><div class="count" style="font-size:1rem">${e['脚質']}</div><div class="label">脚質</div></div>
+      <div class="style-item"><div class="count">${e['平均上がり3F'] || '-'}</div><div class="label">上がり3F</div></div>
+      <div class="style-item"><div class="count" style="color:var(--accent)">${r['score'] || '-'}</div><div class="label">総合スコア</div></div>
+    </div>
+    
+    <div style="margin-bottom:20px">
+      <div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:6px">スコア内訳</div>
+      <div class="factor-bar-container">
+        <div class="factor-bar f-ability" style="width:${(factors['能力値'] || 0) / 100 * 100}%" title="能力: ${factors['能力値']}"></div>
+        <div class="factor-bar f-pace"    style="width:${(factors['展開適性'] || 0) / 100 * 100}%" title="展開: ${factors['展開適性']}"></div>
+        <div class="factor-bar f-course"  style="width:${(factors['コース適性'] || 0) / 100 * 100}%" title="適性: ${factors['コース適性']}"></div>
+        <div class="factor-bar f-form"    style="width:${(factors['近走調子'] || 0) / 100 * 100}%" title="調子: ${factors['近走調子']}"></div>
+        <div class="factor-bar f-waku"    style="width:${(factors['枠順傾向'] || 0) / 100 * 100}%" title="枠順: ${factors['枠順傾向']}"></div>
+      </div>
+      <div class="factor-legend">
+        <div class="legend-item"><div class="dot f-ability"></div>能力 ${factors['能力値']}</div>
+        <div class="legend-item"><div class="dot f-pace"></div>展開 ${factors['展開適性']}</div>
+        <div class="legend-item"><div class="dot f-course"></div>適性 ${factors['コース適性']}</div>
+        <div class="legend-item"><div class="dot f-form"></div>調子 ${factors['近走調子']}</div>
+        <div class="legend-item"><div class="dot f-waku"></div>枠順 ${factors['枠順傾向']}</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;font-size:0.85rem">
+      <div>騎手: <strong>${e['騎手']}</strong></div>
+      <div>斤量: <strong>${e['斤量']}kg</strong></div>
+      <div>性齢: <strong>${e['性齢'] || '-'}</strong></div>
+      <div>馬体重: <strong>${e['馬体重'] || '-'}</strong></div>
+      <div>同コース成績: <strong>${e['同コース成績'] || '-'}</strong></div>
+      <div>同距離成績: <strong>${e['同距離成績'] || '-'}</strong></div>
+      <div>単勝オッズ: <strong>${e['オッズ'] || '-'}倍</strong></div>
+      <div>人気評価: <strong>${renderValueBadge(e['人気評価'])}</strong></div>
+    </div>
+    
+    <div style="background:rgba(99,102,241,0.08); border-radius:10px; padding:15px; margin-bottom:20px; border-left:5px solid var(--accent)">
+      <div style="font-size:0.75rem; color:var(--accent); font-weight:700; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.05em">Analysis Comment</div>
+      <div style="font-size:0.95rem; line-height:1.6; color:var(--text-primary); font-weight:500">
+        ${e['コメント'] || 'データ不足により詳細なコメントを生成できませんでした。'}
+      </div>
+    </div>
+
+    ${ e['妙味指数'] != null ? `
+    <div style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:16px;font-size:0.83rem">
+      <div style="font-weight:700;margin-bottom:6px">💡 オッズ妙味・期待値</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center">
+        <div><div style="font-size:1.1rem;font-weight:700">${e['理論勝率']}%</div><div style="color:var(--text-muted)">理論勝率</div></div>
+        <div><div style="font-size:1.1rem;font-weight:700">${e['暗示勝率']}%</div><div style="color:var(--text-muted)">市場評価</div></div>
+        <div><div style="font-size:1.1rem;font-weight:700;color:${e['人気評価']==='過少人気'?'#16a34a':e['人気評価']==='過剰人気'?'#dc2626':'#64748b'}">×${e['妙味指数'].toFixed(2)}</div><div style="color:var(--text-muted)">妙味指数</div></div>
+        <div><div style="font-size:1.1rem;font-weight:700;color:${e['期待値']>=1.0?'#16a34a':'#dc2626'}">${e['期待値']!=null?e['期待値'].toFixed(2):'-'}</div><div style="color:var(--text-muted)">期待値(EV)</div></div>
+      </div>
+    </div>` : ''}
+    `;
+
+      const races = e['過去走'] || [];
+      if (races.length > 0) {
+        html += `<h3 style="font-size:0.95rem;margin-bottom:12px">過去走 (${races.length}走)</h3>
+    <div class="table-wrapper">
+      <table class="history-table">
+        <thead><tr>
+          <th>日付</th><th>競馬場</th><th>レース名</th><th>距離</th>
+          <th>馬場</th><th>着順</th><th>タイム</th><th>上がり3F</th><th>通過</th><th>人気</th>
+        </tr></thead>
+        <tbody>`;
+        races.forEach(r => {
+          const finishColor = r['着順'] <= 3 ? 'var(--green)' : r['着順'] <= 5 ? 'var(--yellow)' : 'var(--text-primary)';
+          html += `<tr>
+        <td>${r['開催日'] || ''}</td>
+        <td>${r['競馬場'] || ''}</td>
+        <td>${r['レース名'] || ''}</td>
+        <td>${r['距離'] || ''}</td>
+        <td>${r['馬場'] || ''}</td>
+        <td style="font-weight:700;color:${finishColor}">${r['着順'] || ''}</td>
+        <td>${r['タイム'] || ''}</td>
+        <td>${r['上がり3F'] || ''}</td>
+        <td>${r['通過順位'] || ''}</td>
+        <td>${r['人気'] || ''}</td>
+      </tr>`;
+        });
+        html += '</tbody></table></div>';
+      }
+
+      document.getElementById('modalBody').innerHTML = html;
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function switchTab(name) {
+      // ペイン切り替え
+      document.getElementById('pane-basic').style.display    = name === 'basic'    ? '' : 'none';
+      document.getElementById('pane-analysis').style.display = name === 'analysis' ? '' : 'none';
+      // ボタンのアクティブ状態
+      document.getElementById('tab-basic').classList.toggle('active',    name === 'basic');
+      document.getElementById('tab-analysis').classList.toggle('active', name === 'analysis');
+    }
+
+    function closeModal(e) {
+      if (e.target === document.getElementById('modal')) {
+        document.getElementById('modal').classList.remove('active');
+
+      }
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') document.getElementById('modal').classList.remove('active');
+    });
+
+    async function exportPdf() {
+      if (!analysisData) return;
+      const btn = document.getElementById('pdfBtn');
+      const msg = document.getElementById('pdfMessage');
+      btn.disabled = true;
+      btn.textContent = '⏳ 生成中...';
+      msg.className = '';
+      msg.style.display = 'none';
+      try {
+        const resp = await fetch('/api/export_pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(analysisData),
+        });
+        const result = await resp.json();
+        if (result.error) {
+          msg.textContent = '❌ ' + result.error;
+          msg.className = 'error';
+        } else {
+          msg.textContent = '✅ 保存完了: ' + result.filename;
+          msg.className = 'success';
+        }
+      } catch (err) {
+        msg.textContent = '❌ エラー: ' + err.message;
+        msg.className = 'error';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📄 PDF保存';
+      }
+    }
+  </script>
+</body>
+
+</html>

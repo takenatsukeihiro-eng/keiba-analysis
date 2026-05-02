@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+ENV/
+output/
+C:\Users\鈴木健史\Desktop\分析結果/
+*.MP4
+.gemini/
+*.log

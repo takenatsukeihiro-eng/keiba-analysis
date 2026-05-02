@@ -1,0 +1,1088 @@
+/* ============================================================
+   競馬データ収集 — ライトテーマ UI
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap');
+
+/* ── Reset & Variables ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.95);
+  --bg-card-hover: rgba(241, 245, 249, 0.98);
+  --bg-glass: rgba(0, 0, 0, 0.03);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(0, 0, 0, 0.18);
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --accent: #6366f1;
+  --accent-glow: rgba(99, 102, 241, 0.2);
+  --green: #059669;
+  --green-bg: rgba(5, 150, 105, 0.1);
+  --yellow: #d97706;
+  --yellow-bg: rgba(217, 119, 6, 0.1);
+  --red: #dc2626;
+  --red-bg: rgba(220, 38, 38, 0.1);
+  --blue: #2563eb;
+  --blue-bg: rgba(37, 99, 235, 0.1);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --font-sans: 'Inter', 'Noto Sans JP', -apple-system, sans-serif;
+}
+
+html {
+  font-size: 14px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* ── Background Gradient ── */
+body::before {
+  content: '';
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.05), transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(16, 185, 129, 0.04), transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.03), transparent 60%);
+  animation: bgFloat 30s ease-in-out infinite;
+  z-index: -1;
+}
+
+@keyframes bgFloat {
+
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+
+  33% {
+    transform: translate(30px, -30px) rotate(1deg);
+  }
+
+  66% {
+    transform: translate(-20px, 20px) rotate(-1deg);
+  }
+}
+
+/* ── Container ── */
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ── Header ── */
+.header {
+  padding: 32px 0 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 32px;
+}
+
+.header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #c084fc, #6366f1, #3b82f6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.02em;
+}
+
+.header p {
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  margin-top: 6px;
+}
+
+/* ── Card Base ── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow);
+  transition: var(--transition);
+}
+
+.card:hover {
+  border-color: var(--border-hover);
+}
+
+.card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title .icon {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+/* ── Form ── */
+.form-section {
+  margin-bottom: 32px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
+  gap: 12px;
+  align-items: end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.form-group input,
+.form-group select {
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  transition: var(--transition);
+  outline: none;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.form-group input::placeholder {
+  color: var(--text-muted);
+}
+
+select option {
+  background: #ffffff;
+  color: var(--text-primary);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 28px;
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px var(--accent-glow);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Loading ── */
+.loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(248, 250, 252, 0.92);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.loading-overlay.active {
+  display: flex;
+}
+
+/* ── Horse Track ── */
+.horse-track-container {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.horse-scene {
+  position: relative;
+  height: 72px;
+  overflow: hidden;
+}
+
+.running-horse {
+  position: absolute;
+  font-size: 3rem;
+  bottom: 4px;
+  animation: horseRunBounce 1.6s linear infinite;
+  filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.15));
+}
+
+@keyframes horseRunBounce {
+  0%   { left: -80px; bottom: 4px; }
+  12%  { bottom: 12px; }
+  25%  { bottom: 4px; }
+  37%  { bottom: 10px; }
+  50%  { bottom: 4px; left: 130px; }
+  62%  { bottom: 12px; }
+  75%  { bottom: 4px; }
+  87%  { bottom: 10px; }
+  100% { left: 340px; bottom: 4px; }
+}
+
+/* 砂煙 */
+.dust {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(180, 150, 100, 0.35);
+  bottom: 2px;
+}
+
+.dust1 { width: 24px; height: 14px; animation: dustMove 1.6s linear infinite 0.3s; }
+.dust2 { width: 16px; height: 10px; animation: dustMove 1.6s linear infinite 0.55s; }
+.dust3 { width: 12px; height: 8px;  animation: dustMove 1.6s linear infinite 0.75s; }
+
+@keyframes dustMove {
+  0%   { left: -80px; opacity: 0; transform: scale(0.5); }
+  10%  { opacity: 0.7; transform: scale(1); }
+  60%  { opacity: 0.3; }
+  100% { left: 280px; opacity: 0; transform: scale(2); }
+}
+
+/* 地面 */
+.track-ground {
+  height: 6px;
+  background: linear-gradient(90deg, #c8a96e, #b8945a, #c8a96e);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.track-line {
+  height: 100%;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    transparent 24px,
+    rgba(255,255,255,0.4) 24px,
+    rgba(255,255,255,0.4) 36px
+  );
+  animation: trackScroll 0.4s linear infinite;
+}
+
+@keyframes trackScroll {
+  from { background-position: 0 0; }
+  to   { background-position: -60px 0; }
+}
+
+/* ── Loading text ── */
+.loading-text {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.loading-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.loading-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+
+.loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50%       { opacity: 1;   transform: scale(1.2); }
+}
+
+/* ── Results ── */
+#results {
+  display: none;
+}
+
+#results.show {
+  display: block;
+}
+
+/* ── Race Header ── */
+.race-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  margin-bottom: 24px;
+  align-items: start;
+}
+
+.race-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.race-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.tag-surface {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.tag-distance {
+  background: var(--blue-bg);
+  color: var(--blue);
+}
+
+.tag-condition {
+  background: var(--yellow-bg);
+  color: var(--yellow);
+}
+
+.tag-class {
+  background: rgba(139, 92, 246, 0.12);
+  color: #a78bfa;
+}
+
+.tag-direction {
+  background: rgba(236, 72, 153, 0.12);
+  color: #f472b6;
+}
+
+/* ── Pace Card ── */
+.pace-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.pace-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin-right: 16px;
+  flex-shrink: 0;
+}
+
+.pace-H {
+  background: var(--red-bg);
+  color: var(--red);
+  border: 2px solid var(--red);
+}
+
+.pace-M {
+  background: var(--yellow-bg);
+  color: var(--yellow);
+  border: 2px solid var(--yellow);
+}
+
+.pace-S {
+  background: var(--green-bg);
+  color: var(--green);
+  border: 2px solid var(--green);
+}
+
+.pace-detail {
+  display: flex;
+  align-items: center;
+}
+
+.pace-info h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.pace-info p {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.style-distribution {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.style-item {
+  text-align: center;
+  padding: 12px 8px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.style-item .count {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.style-item .label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* ── Entries Table ── */
+.table-wrapper {
+  overflow-x: auto;
+  margin-bottom: 24px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.entries-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.entries-table th {
+  background: rgba(99, 102, 241, 0.08);
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+}
+
+.entries-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  transition: var(--transition);
+}
+
+.entries-table tr:hover td {
+  background: var(--bg-glass);
+}
+
+.entries-table tr:last-child td {
+  border-bottom: none;
+}
+
+.entries-table .num {
+  text-align: center;
+  font-weight: 600;
+}
+
+.entries-table .horse-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.entries-table .horse-name:hover {
+  color: var(--accent);
+}
+
+/* Waku colors */
+.waku {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: #fff;
+}
+
+.waku-1 {
+  background: #fff;
+  color: #333;
+  border: 1px solid #ccc;
+}
+
+.waku-2 {
+  background: #333;
+}
+
+.waku-3 {
+  background: #e53e3e;
+}
+
+.waku-4 {
+  background: #3182ce;
+}
+
+.waku-5 {
+  background: #ecc94b;
+  color: #333;
+}
+
+.waku-6 {
+  background: #38a169;
+}
+
+.waku-7 {
+  background: #ed8936;
+}
+
+.waku-8 {
+  background: #d53f8c;
+}
+
+/* Style badge */
+.style-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.style-nige {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.style-senkou {
+  background: var(--yellow-bg);
+  color: var(--yellow);
+}
+
+.style-sashi {
+  background: var(--blue-bg);
+  color: var(--blue);
+}
+
+.style-oikomi {
+  background: rgba(139, 92, 246, 0.12);
+  color: #a78bfa;
+}
+
+.style-fumei {
+  background: var(--bg-glass);
+  color: var(--text-muted);
+}
+
+/* ── Post Position Trend ── */
+.trend-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 8px;
+}
+
+.trend-item {
+  text-align: center;
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 4px;
+  transition: var(--transition);
+}
+
+.trend-item:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.trend-waku {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.trend-win {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.trend-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.trend-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.trend-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+  transition: width 0.6s ease;
+}
+
+/* ── Horse Detail Modal ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(248, 250, 252, 0.8);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+.modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  width: 700px;
+  max-width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modal-header h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: var(--transition);
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.history-table th {
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-table tr:hover td {
+  background: var(--bg-glass);
+}
+
+/* ── Quality Issues ── */
+.quality-ok {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--green-bg);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: var(--radius-sm);
+  color: var(--green);
+  font-weight: 500;
+}
+
+.quality-issue {
+  padding: 8px 12px;
+  background: var(--yellow-bg);
+  border-left: 3px solid var(--yellow);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--yellow);
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+
+/* ── Footer ── */
+.footer {
+  text-align: center;
+  padding: 32px 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .pace-section {
+    grid-template-columns: 1fr;
+  }
+
+  .trend-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .race-header {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  html {
+    font-size: 13px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .style-distribution {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .trend-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ── Animations ── */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation: fadeInUp 0.4s ease both;
+}
+
+.animate-in:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.animate-in:nth-child(3) {
+  animation-delay: 0.16s;
+}
+
+.animate-in:nth-child(4) {
+  animation-delay: 0.24s;
+}
+
+.animate-in:nth-child(5) {
+  animation-delay: 0.32s;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ── Error Card ── */
+.error-card {
+  background: var(--red-bg);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  color: var(--red);
+  font-weight: 500;
+  margin-bottom: 24px;
+}
+
+/* ── Marks (◎◯▲△) ── */
+.mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.mark-honmei {
+  background: var(--red-bg);
+  color: var(--red);
+  border: 1.5px solid var(--red);
+}
+
+.mark-taikou {
+  background: var(--yellow-bg);
+  color: var(--yellow);
+  border: 1.5px solid var(--yellow);
+}
+
+.mark-anaume {
+  background: var(--blue-bg);
+  color: var(--blue);
+  border: 1.5px solid var(--blue);
+}
+
+.mark-renka {
+  background: var(--bg-glass);
+  color: var(--text-primary);
+  border: 1.5px solid var(--border);
+}
+
+/* ── Recommendation Dashboard ── */
+.rec-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.rec-horse-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: var(--radius-sm);
+}
+
+.rec-horse-info h4 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.rec-horse-info p {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.score-badge {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--accent);
+  background: var(--accent-glow);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* ── Betting Section ── */
+.bet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.bet-card {
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+}
+
+.bet-card h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+
+.bet-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 0.92rem;
+}
+
+.bet-numbers {
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+
+.bet-note {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ── Score Distribution ── */
+.factor-bar-container {
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  margin: 4px 0 12px;
+  overflow: hidden;
+  display: flex;
+}
+
+.factor-bar {
+  height: 100%;
+}
+
+.f-ability {
+  background: #6366f1;
+}
+
+.f-pace {
+  background: #10b981;
+}
+
+.f-course {
+  background: #3b82f6;
+}
+
+.f-form {
+  background: #f59e0b;
+}
+
+.f-waku {
+  background: #ef4444;
+}
+
+.factor-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
