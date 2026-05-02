@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 
 from config import (
     HORSE_RESULT_URL,
+    HORSE_SP_RESULT_URL,
     HORSE_TOP_URL,
     ODDS_API_URL,
     ODDS_URL,
@@ -286,128 +287,133 @@ def fetch_horse_history(horse_id: str, n: int = 10) -> List[Dict]:
     print(f"  [INFO] 過去成績取得: {horse_id}")
     time.sleep(REQUEST_DELAY)
 
+    # 1. PC版での取得を試行
     soup = _get(url)
-    if not soup:
-        print(f"    [WARN] 過去成績ページが取得できませんでした (403/404?): {horse_id}")
-        # フォールバック: トップページ
-        url2 = HORSE_TOP_URL.format(horse_id=horse_id)
-        soup = _get(url2)
-        if not soup:
-            print(f"    [WARN] 馬トップページも取得できませんでした: {horse_id}")
-            return []
+    if soup:
+        # 成績テーブルを探す
+        perf_table = (
+            soup.find("table", {"summary": "全競走成績"}) or 
+            soup.select_one("table.db_h_race_results") or 
+            soup.select_one("table[class*='result']")
+        )
+        if perf_table:
+            # ヘッダー取得
+            header_row = perf_table.select("tr")[0] if perf_table.select("tr") else None
+            if header_row:
+                headers = [_clean(th.get_text()) for th in header_row.select("th, td")]
+                data_rows = perf_table.select("tr")[1:]
+                for row in data_rows[:n]:
+                    cells = row.select("td")
+                    if len(cells) < 5: continue
+                    record = {}
+                    cell_texts = [_clean(c.get_text()) for c in cells]
+                    for i, h in enumerate(headers):
+                        if i < len(cell_texts):
+                            val = cell_texts[i]
+                            if h in ("日付", "開催日"): record["開催日"] = val
+                            elif h in ("開催", "競馬場"):
+                                track_match = re.search(r"(札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉)", val)
+                                record["競馬場"] = track_match.group(1) if track_match else val
+                            elif h in ("レース名",): record["レース名"] = val
+                            elif h in ("頭数",): record["頭数"] = _safe_int(val)
+                            elif h in ("枠番", "枠"): record["枠番"] = _safe_int(val)
+                            elif h in ("馬番",): record["馬番"] = _safe_int(val)
+                            elif h in ("オッズ",): record["オッズ"] = _safe_float(val)
+                            elif h in ("人気",): record["人気"] = _safe_int(val)
+                            elif h in ("着順",): record["着順"] = _safe_int(val) if val.isdigit() else val
+                            elif h in ("タイム", "走破タイム"): record["タイム"] = val
+                            elif h in ("通過",): record["通過順位"] = val
+                            elif h in ("上り", "上がり", "上がり3F"): record["上がり3F"] = _safe_float(val)
+                            elif h in ("距離",):
+                                if val.startswith("芝"):
+                                    record["芝ダート"] = "芝"; record["距離"] = _safe_int(val[1:])
+                                elif val.startswith("ダ"):
+                                    record["芝ダート"] = "ダート"; record["距離"] = _safe_int(val[1:])
+                                else: record["距離"] = _safe_int(val)
+                            elif h in ("馬場",): record["馬場"] = val
+                    if record.get("開催日") or record.get("着順"):
+                        results.append(record)
+                if results:
+                    print(f"    → PC版から {len(results)} 走取得")
+                    return results
 
-    # 成績テーブルを探す
-    perf_table = (
-        soup.find("table", {"summary": "全競走成績"}) or 
-        soup.select_one("table.db_h_race_results") or 
-        soup.select_one("table[class*='result']")
-    )
-    if not perf_table:
-        # テーブルIDで探す
-        perf_table = soup.select_one("#contents table.nk_tb_common")
-        if not perf_table:
-            tables = soup.select("table")
-            for t in tables:
-                headers = [_clean(th.get_text()) for th in t.select("th")]
-                if "着順" in headers and "競馬場" in headers:
-                    perf_table = t
-                    break
-    if not perf_table:
-        print(f"    [WARN] 成績テーブルが見つかりません: {horse_id} (ページ内容が期待と異なるか、アクセス制限の可能性があります)")
-        return []
+    # 2. スマホ版での取得を試行 (PC版がブロックされている場合などのフォールバック)
+    print(f"    [INFO] スマホ版から取得を試行します: {horse_id}")
+    url_sp = HORSE_SP_RESULT_URL.format(horse_id=horse_id)
+    # スマホ版はUser-AgentをiPhoneにして取得
+    headers_sp = REQUEST_HEADERS.copy()
+    headers_sp["User-Agent"] = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1"
+    
+    try:
+        resp = session.get(url_sp, headers=headers_sp, timeout=REQUEST_TIMEOUT)
+        if resp.status_code == 200:
+            soup_sp = BeautifulSoup(resp.text, "lxml")
+            results = _parse_sp_horse_history(soup_sp, n)
+            if results:
+                print(f"    → スマホ版から {len(results)} 走取得")
+                return results
+    except Exception as e:
+        print(f"    [ERROR] スマホ版取得失敗: {e}")
 
-    # ヘッダー取得
-    header_row = perf_table.select("tr")[0] if perf_table.select("tr") else None
-    if not header_row:
-        return []
+    print(f"    [WARN] 過去成績が取得できませんでした: {horse_id}")
+    return []
 
-    headers = [_clean(th.get_text()) for th in header_row.select("th, td")]
 
-    # データ行パース
+def _parse_sp_horse_history(soup: BeautifulSoup, n: int = 10) -> List[Dict]:
+    """
+    スマホ版 (sp.netkeiba.com) の成績ページをパースする
+    """
     results = []
-    data_rows = perf_table.select("tr")[1:]
-    for row in data_rows[:n]:
-        cells = row.select("td")
-        if len(cells) < 5:
+    # 各レース結果は LinkBox_Item02 というクラスの a タグに入っている
+    items = soup.select(".LinkBox_Item02")
+    
+    for item in items[:n]:
+        try:
+            record = {}
+            # レース名
+            name_tag = item.select_one("h2 span")
+            if name_tag:
+                record["レース名"] = _clean(name_tag.get_text())
+            
+            # 日付、競馬場、距離
+            # <p>2024/04/14 中山11R 芝2000m</p>
+            info_p = item.select_one("div p:nth-of-type(1)")
+            if info_p:
+                text = _clean(info_p.get_text())
+                # 日付
+                date_m = re.search(r"(\d{4}/\d{2}/\d{2})", text)
+                if date_m: record["開催日"] = date_m.group(1)
+                # 競馬場
+                track_match = re.search(r"(札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉)", text)
+                if track_match: record["競馬場"] = track_match.group(1)
+                # 距離・芝ダ
+                dist_m = re.search(r"(芝|ダ|障)(\d+)m", text)
+                if dist_m:
+                    record["芝ダート"] = "芝" if dist_m.group(1) == "芝" else "ダート" if dist_m.group(1) == "ダ" else "障害"
+                    record["距離"] = int(dist_m.group(2))
+            
+            # 着順、人気、騎手
+            # <p>(1人気) 戸崎圭太(57.0) <span>1</span></p>
+            detail_p = item.select_one("div p:nth-of-type(2)")
+            if detail_p:
+                text = _clean(detail_p.get_text())
+                # 着順 (span内)
+                rank_tag = detail_p.select_one("span")
+                if rank_tag:
+                    record["着順"] = _safe_int(rank_tag.get_text())
+                # 人気
+                ninki_m = re.search(r"\((\d+)人気\)", text)
+                if ninki_m: record["人気"] = int(ninki_m.group(1))
+                # 騎手
+                jockey_m = re.search(r"\) ([^ (]+)\(", text)
+                if jockey_m: record["騎手"] = jockey_m.group(1)
+                
+            if record.get("開催日") or record.get("着順"):
+                results.append(record)
+        except Exception as e:
+            print(f"      [DEBUG] SPパースエラー1件スキップ: {e}")
             continue
-
-        record = {}
-        cell_texts = [_clean(c.get_text()) for c in cells]
-
-        # ヘッダーベースでマッピング
-        for i, h in enumerate(headers):
-            if i < len(cell_texts):
-                val = cell_texts[i]
-                if h in ("日付", "開催日"):
-                    record["開催日"] = val
-                elif h in ("開催", "競馬場"):
-                    # "5東京3" のようなフォーマットから競馬場名を抽出
-                    track_match = re.search(r"(札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉)", val)
-                    record["競馬場"] = track_match.group(1) if track_match else val
-                elif h == "天気":
-                    record["天気"] = val
-                elif h in ("R", "レース番号"):
-                    record["R"] = val
-                elif h in ("レース名",):
-                    record["レース名"] = val
-                elif h in ("映像",):
-                    pass  # skip
-                elif h in ("頭数",):
-                    record["頭数"] = _safe_int(val)
-                elif h in ("枠番", "枠"):
-                    record["枠番"] = _safe_int(val)
-                elif h in ("馬番",):
-                    record["馬番"] = _safe_int(val)
-                elif h in ("オッズ",):
-                    record["オッズ"] = _safe_float(val)
-                elif h in ("人気",):
-                    record["人気"] = _safe_int(val)
-                elif h in ("着順",):
-                    record["着順"] = _safe_int(val) if val.isdigit() else val
-                elif h in ("騎手",):
-                    # リンクからも取得試行
-                    link = cells[i].select_one("a") if i < len(cells) else None
-                    record["騎手"] = _clean(link.get_text()) if link else val
-                elif h in ("斤量",):
-                    record["斤量"] = _safe_float(val)
-                elif h in ("距離",):
-                    # "芝1600" or "ダ1200" 形式
-                    if val:
-                        if val.startswith("芝"):
-                            record["芝ダート"] = "芝"
-                            record["距離"] = _safe_int(val[1:])
-                        elif val.startswith("ダ"):
-                            record["芝ダート"] = "ダート"
-                            record["距離"] = _safe_int(val[1:])
-                        else:
-                            record["距離"] = _safe_int(val)
-                elif h in ("馬場",):
-                    record["馬場"] = val
-                elif h in ("馬場指数", "馬場差"):
-                    pass
-                elif h in ("タイム", "走破タイム"):
-                    record["タイム"] = val
-                elif h in ("着差",):
-                    record["着差"] = val
-                elif h in ("ﾀｲﾑ指数", "タイム指数"):
-                    pass
-                elif h in ("通過",):
-                    record["通過順位"] = val
-                elif h in ("ペース",):
-                    record["ペース"] = val
-                elif h in ("上り", "上がり", "上がり3F"):
-                    record["上がり3F"] = _safe_float(val)
-                elif h in ("馬体重",):
-                    record["馬体重"] = val
-                elif h in ("勝ち馬", "勝ち馬(2着馬)"):
-                    record["勝ち馬"] = val
-                elif h in ("賞金",):
-                    record["賞金"] = val
-
-        if record.get("開催日") or record.get("着順"):
-            results.append(record)
-
-    print(f"    → {len(results)} 走取得")
+            
     return results
 
 
