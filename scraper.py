@@ -300,6 +300,18 @@ def fetch_horse_history(horse_id: str, n: int = 10) -> List[Dict]:
                 if "着順" in headers and "競馬場" in headers:
                     perf_table = t
                     break
+    
+    if not perf_table:
+        # モバイルサイトへのフォールバックを試みる
+        print(f"    [INFO] モバイルサイトから取得を試みます: {horse_id}")
+        sp_url = HORSE_RESULT_SP_URL.format(horse_id=horse_id)
+        sp_soup = _get(sp_url)
+        if sp_soup:
+            perf_table = sp_soup.select_one("table.db_h_race_results, table.nk_tb_common, .HorseResult_Table table")
+            if not perf_table:
+                # sp サイトの特殊な構造
+                perf_table = sp_soup.select_one("section#horse_result table")
+        
     if not perf_table:
         print(f"    [WARN] 成績テーブルが見つかりません: {horse_id}")
         return []

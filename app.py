@@ -213,18 +213,22 @@ def run_analysis(
         h_name = entry.get("馬名", "不明")
         h_id = entry.get("horse_id", "")
         if not h_id:
-            return h_name, [], f"{h_name}: horse_id不明"
+            return h_id, [], f"{h_name}: horse_id不明"
         try:
+            # サーバー負荷分散のため、ランダムに少しだけ待つ
+            import time, random
+            time.sleep(random.uniform(0.1, 0.5))
             hist = fetch_horse_history(h_id, n=history_n)
-            return h_name, hist, None
+            return h_id, hist, None
         except Exception as ex:
-            return h_name, [], f"{h_name}: 取得エラー - {str(ex)}"
+            return h_id, [], f"{h_name}: 取得エラー - {str(ex)}"
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=3) as executor:
         future_to_horse = {executor.submit(fetch_task, e): e for e in entries}
         for future in as_completed(future_to_horse):
-            h_name, hist, error = future.result()
-            all_history[h_name] = hist
+            h_id, hist, error = future.result()
+            if h_id:
+                all_history[h_id] = hist
             if error:
                 quality_issues.append(error)
 
@@ -237,7 +241,11 @@ def run_analysis(
 
     for entry in entries:
         horse_name = entry.get("馬名", "")
-        history = all_history.get(horse_name, [])
+        horse_id = entry.get("horse_id", "")
+        history = all_history.get(horse_id, []) if horse_id else []
+        
+        if not history:
+            quality_issues.append(f"{horse_name}: 過去成績が空です")
         summary = calc_horse_summary(entry, history, track, surface, distance)
         horse_summaries.append(summary)
         entries_with_style.append({
@@ -278,10 +286,12 @@ def run_analysis(
     steps.append({"step": 6, "name": "推奨馬分析", "status": "running"})
     # entries_out を作成する前に必要なデータを準備
     temp_entries_for_rec = []
+    # ── ステップごとのデータ処理 ──
+    temp_entries_for_rec = []
     for i, entry in enumerate(entries):
-        horse_name = entry.get("馬名", "")
+        horse_id = entry.get("horse_id", "")
         summary = horse_summaries[i] if i < len(horse_summaries) else {}
-        history = all_history.get(horse_name, [])
+        history = all_history.get(horse_id, []) if horse_id else []
         
         # calc_recommendation に必要な情報を付加
         e_copy = entry.copy()
@@ -296,15 +306,15 @@ def run_analysis(
     entries_out = []
     ranking_map = {r["馬番"]: r for r in recommendation.get("ranking", [])}
     for i, entry in enumerate(entries):
-        horse_name = entry.get("馬名", "")
+        horse_id = entry.get("horse_id", "")
         summary = horse_summaries[i] if i < len(horse_summaries) else {}
-        history = all_history.get(horse_name, [])
+        history = all_history.get(horse_id, []) if horse_id else []
         rec_row = ranking_map.get(entry.get("馬番", 0), {})
 
         entries_out.append({
             "馬番": entry.get("馬番", 0),
             "枠番": entry.get("枠番", 0),
-            "馬名": horse_name,
+            "馬名": entry.get("馬名", ""),
             "性齢": entry.get("性齢", ""),
             "騎手": entry.get("騎手", ""),
             "斤量": entry.get("斤量", 0),
@@ -344,7 +354,7 @@ def run_analysis(
                     "通過順位": r.get("通過順位", ""),
                     "人気": r.get("人気", 0),
                 }
-                for r in history[:5]
+                for r in history[:10]
             ],
         })
 
