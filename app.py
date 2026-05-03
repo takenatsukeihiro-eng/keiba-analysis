@@ -223,14 +223,31 @@ def run_analysis(
         except Exception as ex:
             return h_id, [], f"{h_name}: 取得エラー - {str(ex)}"
 
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        future_to_horse = {executor.submit(fetch_task, e): e for e in entries}
-        for future in as_completed(future_to_horse):
-            h_id, hist, error = future.result()
-            if h_id:
-                all_history[h_id] = hist
-            if error:
-                quality_issues.append(error)
+    # デバッグログ用
+    with open("debug_log.txt", "a", encoding="utf-8") as f_log:
+        f_log.write(f"\n--- Analysis Start: {race_id} ---\n")
+
+    # 逐次取得（安定性重視）
+    for i, entry in enumerate(entries):
+        h_name = entry.get("馬名", "不明")
+        h_id = entry.get("horse_id", "")
+        
+        with open("debug_log.txt", "a", encoding="utf-8") as f_log:
+            f_log.write(f"Fetching {h_name} (ID: {h_id})...\n")
+
+        h_id_ret, hist, error = fetch_task(entry)
+        
+        with open("debug_log.txt", "a", encoding="utf-8") as f_log:
+            f_log.write(f"  -> Result: {len(hist)} races, Error: {error}\n")
+
+        if h_id_ret:
+            all_history[h_id_ret] = hist
+        if error:
+            quality_issues.append(error)
+        
+        print(f"  [INFO] 進捗: {i+1}/{len(entries)} 頭完了")
+        import time
+        time.sleep(2.0)
 
     steps[-1]["status"] = "done"
 
