@@ -360,42 +360,35 @@ def fetch_horse_history(horse_id: str, n: int = 10) -> List[Dict]:
                     record["馬番"] = _safe_int(val)
                 elif h in ("オッズ",):
                     record["オッズ"] = _safe_float(val)
-                elif h in ("人気",):
+                elif "人気" in h:
                     record["人気"] = _safe_int(val)
-                elif h in ("着順",):
-                    record["着順"] = _safe_int(val) if val.isdigit() else val
-                elif h in ("騎手",):
-                    # リンクからも取得試行
+                elif "着順" in h:
+                    # 「1(降)」や「10(再)」などのケースに対応
+                    m = re.search(r"(\d+)", val)
+                    record["着順"] = int(m.group(1)) if m else val
+                elif "騎手" in h:
                     link = cells[i].select_one("a") if i < len(cells) else None
                     record["騎手"] = _clean(link.get_text()) if link else val
-                elif h in ("斤量",):
+                elif "斤量" in h:
                     record["斤量"] = _safe_float(val)
-                elif h in ("距離",):
-                    # "芝1600" or "ダ1200" 形式
+                elif "距離" in h or "コース" in h:
                     if val:
-                        if val.startswith("芝"):
-                            record["芝ダート"] = "芝"
-                            record["距離"] = _safe_int(val[1:])
-                        elif val.startswith("ダ"):
-                            record["芝ダート"] = "ダート"
-                            record["距離"] = _safe_int(val[1:])
-                        else:
-                            record["距離"] = _safe_int(val)
-                elif h in ("馬場",):
+                        if "芝" in val: record["芝ダート"] = "芝"
+                        elif "ダ" in val: record["芝ダート"] = "ダート"
+                        elif "障" in val: record["芝ダート"] = "障害"
+                        m = re.search(r"(\d+)", val)
+                        if m: record["距離"] = int(m.group(1))
+                elif "馬場" in h and "指数" not in h:
                     record["馬場"] = val
-                elif h in ("馬場指数", "馬場差"):
-                    pass
-                elif h in ("タイム", "走破タイム"):
+                elif "タイム" in h and "指数" not in h:
                     record["タイム"] = val
-                elif h in ("着差",):
+                elif "着差" in h:
                     record["着差"] = val
-                elif h in ("ﾀｲﾑ指数", "タイム指数"):
-                    pass
-                elif h in ("通過",):
+                elif "通過" in h:
                     record["通過順位"] = val
-                elif h in ("ペース",):
+                elif "ペース" in h:
                     record["ペース"] = val
-                elif h in ("上り", "上がり", "上がり3F"):
+                elif "上り" in h or "上がり" in h or "後3F" in h:
                     record["上がり3F"] = _safe_float(val)
                 elif h in ("馬体重",):
                     record["馬体重"] = val

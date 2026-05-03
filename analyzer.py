@@ -230,11 +230,15 @@ def calc_horse_summary(
     # 平均着順
     finishes = []
     for r in history:
-        f = r.get("着順", 99)
-        if isinstance(f, int) and f > 0:
-            finishes.append(f)
-        elif isinstance(f, str) and f.isdigit():
+        f = r.get("着順")
+        if f is None: continue
+        if isinstance(f, (int, float)) and f > 0:
             finishes.append(int(f))
+        elif isinstance(f, str):
+            # 文字列から数値を抽出 (例: "1(降)" -> 1)
+            m = re.search(r"(\d+)", f)
+            if m:
+                finishes.append(int(m.group(1)))
     summary["平均着順"] = round(sum(finishes) / len(finishes), 1) if finishes else 0
 
     # 勝率等
