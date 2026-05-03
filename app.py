@@ -12,8 +12,15 @@ from datetime import datetime
 from flask import Flask, jsonify, render_template, request, send_file
 
 from pdf_exporter import generate_pdf
+from line_sender import send_pdf_to_line
 
-from config import OUTPUT_DIR, TRACK_CODES, TRACK_DIRECTION
+from config import (
+    OUTPUT_DIR, 
+    TRACK_CODES, 
+    TRACK_DIRECTION,
+    LINE_CHANNEL_ACCESS_TOKEN,
+    LINE_USER_ID
+)
 from scraper import fetch_horse_history, fetch_race_entries, fetch_odds
 from analyzer import (
     calc_horse_summary,
@@ -95,10 +102,56 @@ def export_pdf():
     try:
         filepath = generate_pdf(data, PDF_OUTPUT_DIR)
         filename = os.path.basename(filepath)
-        return jsonify({"status": "ok", "filename": filename, "path": filepath})
+        
+        # クエリパラメータで line=true があればLINE送信も試みる
+        send_line = request.args.get("line", "false").lower() == "true"
+        line_result = None
+        if send_line:
+            race_name = data.get("race_name", "不明なレース")
+            line_result = send_pdf_to_line(
+                filepath, 
+                race_name, 
+                LINE_CHANNEL_ACCESS_TOKEN, 
+                LINE_USER_ID
+            )
+
+        return jsonify({
+            "status": "ok", 
+            "filename": filename, 
+            "path": filepath,
+            "line_sent": send_line,
+            "line_result": line_result
+        })
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": f"PDF生成中にエラーが発生しました: {str(e)}"}), 500
+
+
+@app.route("/api/send_line", methods=["POST"])
+def send_line_api():
+    """既存のPDFファイルをLINEに送信するAPI"""
+    data = request.get_json()
+    filename = data.get("filename")
+    race_name = data.get("race_name", "競馬分析")
+    
+    if not filename:
+        return jsonify({"error": "ファイル名が指定されていません"}), 400
+        
+    filepath = os.path.join(PDF_OUTPUT_DIR, filename)
+    if not os.path.exists(filepath):
+        return jsonify({"error": "ファイルが見つかりません"}), 404
+        
+    try:
+        result = send_pdf_to_line(
+            filepath, 
+            race_name, 
+            LINE_CHANNEL_ACCESS_TOKEN, 
+            LINE_USER_ID
+        )
+        return jsonify(result)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 def run_analysis(
@@ -147,26 +200,33 @@ def run_analysis(
 
     steps[-1]["status"] = "done"
 
-    # ── STEP 2: 各馬の過去成績取得 ──
+    # ── STEP 2: 各馬の過去成績取得（並列化） ──
     steps.append({"step": 2, "name": "過去成績取得", "status": "running"})
     all_history = {}
     quality_issues = []
 
-    for i, entry in enumerate(entries):
-        horse_name = entry.get("馬名", f"馬{i+1}")
-        horse_id = entry.get("horse_id", "")
-
-        if not horse_id:
-            quality_issues.append(f"{horse_name}: horse_id不明")
-            all_history[horse_name] = []
-            continue
-
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    
+    print(f"[INFO] 過去成績を並列取得中 (頭数: {len(entries)}) ...")
+    
+    def fetch_task(entry):
+        h_name = entry.get("馬名", "不明")
+        h_id = entry.get("horse_id", "")
+        if not h_id:
+            return h_name, [], f"{h_name}: horse_id不明"
         try:
-            history = fetch_horse_history(horse_id, n=history_n)
-            all_history[horse_name] = history
-        except Exception as e:
-            quality_issues.append(f"{horse_name}: 過去成績取得エラー - {str(e)}")
-            all_history[horse_name] = []
+            hist = fetch_horse_history(h_id, n=history_n)
+            return h_name, hist, None
+        except Exception as ex:
+            return h_name, [], f"{h_name}: 取得エラー - {str(ex)}"
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_horse = {executor.submit(fetch_task, e): e for e in entries}
+        for future in as_completed(future_to_horse):
+            h_name, hist, error = future.result()
+            all_history[h_name] = hist
+            if error:
+                quality_issues.append(error)
 
     steps[-1]["status"] = "done"
 

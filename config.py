@@ -85,3 +85,11 @@ STYLE_THRESHOLDS = {
 # 出力ディレクトリ
 # ============================================================
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
+
+# ============================================================
+# LINE Messaging API 設定
+# ============================================================
+# LINE Developers で取得したトークンとIDを設定してください
+# 環境変数からも読み込み可能です
+LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "YOUR_CHANNEL_ACCESS_TOKEN")
+LINE_USER_ID = os.environ.get("LINE_USER_ID", "YOUR_USER_ID")

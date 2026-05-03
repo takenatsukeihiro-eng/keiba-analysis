@@ -66,6 +66,30 @@
     #pdfMessage.success { background: #dcfce7; color: #15803d; display: block; }
     #pdfMessage.error   { background: #fee2e2; color: #dc2626; display: block; }
 
+    .btn-line {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 20px;
+      background: linear-gradient(135deg, #06c755, #05b34c);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-sans);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: var(--transition);
+      box-shadow: 0 2px 8px rgba(6, 199, 85, 0.25);
+    }
+    .btn-line:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(6, 199, 85, 0.35);
+    }
+    .btn-line:active { transform: translateY(0); }
+    .btn-line:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
     /* 妙味指数 */
     .value-badge {
       display: inline-block;
@@ -271,9 +295,14 @@
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
             <div style="text-align:right;color:var(--text-muted);font-size:0.8rem" id="generatedAt"></div>
-            <button class="btn-pdf" id="pdfBtn" onclick="exportPdf()">
-              📄 PDF保存
-            </button>
+            <div style="display:flex; gap:8px">
+              <button class="btn-pdf" id="pdfBtn" onclick="exportPdf()">
+                📄 PDF保存
+              </button>
+              <button class="btn-line" id="lineBtn" onclick="sendToLine()" disabled>
+                💬 LINE送信
+              </button>
+            </div>
             <div id="pdfMessage"></div>
           </div>
         </div>
@@ -1043,30 +1072,73 @@
       if (!analysisData) return;
       const btn = document.getElementById('pdfBtn');
       const msg = document.getElementById('pdfMessage');
+      const lineBtn = document.getElementById('lineBtn');
+      
       btn.disabled = true;
       btn.textContent = '⏳ 生成中...';
       msg.className = '';
       msg.style.display = 'none';
+
       try {
         const resp = await fetch('/api/export_pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(analysisData),
         });
-        const result = await resp.json();
-        if (result.error) {
-          msg.textContent = '❌ ' + result.error;
-          msg.className = 'error';
-        } else {
-          msg.textContent = '✅ 保存完了: ' + result.filename;
-          msg.className = 'success';
-        }
+        const res = await resp.json();
+        if (res.error) throw new Error(res.error);
+
+        msg.className = 'success';
+        msg.innerHTML = `✅ PDF生成成功: <a href="/output/${res.filename}" target="_blank">${res.filename}</a>`;
+        msg.style.display = 'block';
+        
+        // 分析データにファイル名を保存しておく（後でLINE送信するため）
+        analysisData.lastPdfFilename = res.filename;
+        lineBtn.disabled = false;
+
       } catch (err) {
-        msg.textContent = '❌ エラー: ' + err.message;
         msg.className = 'error';
+        msg.textContent = '❌ PDF生成失敗: ' + err.message;
+        msg.style.display = 'block';
       } finally {
         btn.disabled = false;
         btn.textContent = '📄 PDF保存';
+      }
+    }
+
+    async function sendToLine() {
+      if (!analysisData || !analysisData.lastPdfFilename) return;
+      
+      const btn = document.getElementById('lineBtn');
+      const msg = document.getElementById('pdfMessage');
+      
+      btn.disabled = true;
+      const originalText = btn.textContent;
+      btn.textContent = '⏳ 送信中...';
+
+      try {
+        const resp = await fetch('/api/send_line', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: analysisData.lastPdfFilename,
+            race_name: analysisData.race_name
+          }),
+        });
+        const res = await resp.json();
+        
+        if (res.success) {
+          alert('LINEに送信しました！');
+          msg.className = 'success';
+          msg.innerHTML += '<br>✅ LINE送信完了';
+        } else {
+          alert('LINE送信失敗: ' + (res.error || '不明なエラー'));
+        }
+      } catch (err) {
+        alert('エラーが発生しました: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
       }
     }
     window.addEventListener('popstate', () => {
